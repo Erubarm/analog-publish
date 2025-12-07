@@ -7,11 +7,19 @@ const fileCache = new Map();
 // Текущий выбранный файл
 let currentFile = null;
 
+// Кэш для содержимого файлов (для поиска)
+const contentCache = new Map();
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
     await loadFileTree();
     setupSearch();
     setupHashNavigation();
+    setupTheme();
+    setupTOC();
+    setupMobileMenu();
+    setupPrint();
+    loadContentCache();
 });
 
 // Загрузка структуры файлов
@@ -120,6 +128,7 @@ function renderTree(tree, container, level) {
         } else {
             const fileDiv = document.createElement('div');
             fileDiv.className = 'file-item';
+            fileDiv.dataset.path = item.path; // Сохраняем путь для поиска
             fileDiv.innerHTML = `
                 <span class="icon">📄</span>
                 <span class="name">${escapeHtml(name)}</span>
@@ -183,9 +192,25 @@ function displayMarkdown(markdown, filePath) {
     const currentFileTitle = document.getElementById('currentFile');
     const breadcrumbs = document.getElementById('breadcrumbs');
     
+    // Настраиваем marked для работы с highlight.js
+    marked.setOptions({
+        highlight: function(code, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+                try {
+                    return hljs.highlight(code, { language: lang }).value;
+                } catch (err) {}
+            }
+            return hljs.highlightAuto(code).value;
+        },
+        langPrefix: 'hljs language-'
+    });
+    
     // Парсим Markdown
     const html = marked.parse(markdown);
     content.innerHTML = html;
+    
+    // Добавляем кнопки копирования для блоков кода
+    addCopyButtons();
     
     // Обновляем заголовок
     const fileName = filePath.split('/').pop().replace('.md', '');
@@ -201,16 +226,33 @@ function displayMarkdown(markdown, filePath) {
     });
     breadcrumbs.innerHTML = breadcrumbParts.join('');
     
+    // Обновляем таблицу содержания
+    updateTOC();
+    
     // Прокручиваем вверх
     content.scrollTop = 0;
+    
+    // Закрываем мобильное меню если открыто
+    closeMobileMenu();
 }
 
 // Настройка поиска
 function setupSearch() {
     const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        filterFileTree(query);
+    const searchInContent = document.getElementById('searchInContent');
+    
+    searchInput.addEventListener('input', async (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        if (query === '') {
+            filterFileTree('');
+            return;
+        }
+        
+        if (searchInContent.checked) {
+            await searchInFileContents(query);
+        } else {
+            filterFileTree(query);
+        }
     });
 }
 
@@ -265,4 +307,309 @@ window.expandToPath = function(path) {
     // Можно добавить логику для автоматического раскрытия папок
     console.log('Expand to path:', path);
 };
+
+// ========== НОВЫЕ ФУНКЦИИ ==========
+
+// Настройка темы
+function setupTheme() {
+    const themeToggle = document.getElementById('themeToggle');
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    updateThemeIcon(currentTheme);
+    
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+        
+        // Перезагружаем подсветку кода при смене темы
+        if (currentFile) {
+            const content = document.getElementById('markdownContent');
+            const codeBlocks = content.querySelectorAll('pre code');
+            codeBlocks.forEach(code => {
+                const lang = code.className.match(/language-(\w+)/)?.[1];
+                if (lang && hljs.getLanguage(lang)) {
+                    code.innerHTML = hljs.highlight(code.textContent, { language: lang }).value;
+                } else {
+                    code.innerHTML = hljs.highlightAuto(code.textContent).value;
+                }
+            });
+        }
+    });
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.querySelector('.theme-icon');
+    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    
+    // Переключаем стили highlight.js
+    const lightStyle = document.getElementById('highlight-light');
+    const darkStyle = document.getElementById('highlight-dark');
+    if (theme === 'dark') {
+        lightStyle.media = 'none';
+        darkStyle.media = 'all';
+    } else {
+        lightStyle.media = 'all';
+        darkStyle.media = 'none';
+    }
+}
+
+// Настройка таблицы содержания
+function setupTOC() {
+    const tocToggle = document.getElementById('tocToggle');
+    const tocClose = document.getElementById('tocClose');
+    const tocSidebar = document.getElementById('tocSidebar');
+    
+    tocToggle.addEventListener('click', () => {
+        tocSidebar.classList.toggle('active');
+    });
+    
+    tocClose.addEventListener('click', () => {
+        tocSidebar.classList.remove('active');
+    });
+}
+
+function updateTOC() {
+    const content = document.getElementById('markdownContent');
+    const tocNav = document.getElementById('tocNav');
+    const headings = content.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    
+    if (headings.length === 0) {
+        tocNav.innerHTML = '<div style="padding: 10px; color: var(--text-secondary);">Нет заголовков</div>';
+        return;
+    }
+    
+    let tocHTML = '<ul class="toc-nav">';
+    let currentLevel = 0;
+    
+    headings.forEach((heading, index) => {
+        const level = parseInt(heading.tagName.substring(1));
+        const id = `heading-${index}`;
+        heading.id = id;
+        
+        if (level > currentLevel) {
+            tocHTML += '<ul>';
+        } else if (level < currentLevel) {
+            tocHTML += '</ul>'.repeat(currentLevel - level);
+        }
+        
+        tocHTML += `<li><a href="#${id}" data-heading-id="${id}">${escapeHtml(heading.textContent)}</a></li>`;
+        currentLevel = level;
+    });
+    
+    tocHTML += '</ul>'.repeat(currentLevel) + '</ul>';
+    tocNav.innerHTML = tocHTML;
+    
+    // Добавляем обработчики для плавной прокрутки
+    tocNav.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('href').substring(1);
+            const target = document.getElementById(targetId);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Обновляем активный элемент в TOC
+                tocNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+                link.classList.add('active');
+            }
+        });
+    });
+    
+    // Отслеживаем прокрутку для подсветки активного заголовка
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+        if (!ticking) {
+            window.requestAnimationFrame(() => {
+                updateActiveTOCItem();
+                ticking = false;
+            });
+            ticking = true;
+        }
+    });
+}
+
+function updateActiveTOCItem() {
+    const content = document.getElementById('markdownContent');
+    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const scrollPos = window.scrollY + 100;
+    
+    let currentHeading = null;
+    for (let i = headings.length - 1; i >= 0; i--) {
+        if (headings[i].offsetTop <= scrollPos) {
+            currentHeading = headings[i];
+            break;
+        }
+    }
+    
+    const tocNav = document.getElementById('tocNav');
+    tocNav.querySelectorAll('a').forEach(a => {
+        a.classList.remove('active');
+        if (currentHeading && a.getAttribute('href') === `#${currentHeading.id}`) {
+            a.classList.add('active');
+        }
+    });
+}
+
+// Добавление кнопок копирования для блоков кода
+function addCopyButtons() {
+    const codeBlocks = document.querySelectorAll('.markdown-content pre');
+    codeBlocks.forEach(pre => {
+        if (pre.querySelector('.code-copy-btn')) return; // Уже есть кнопка
+        
+        const code = pre.querySelector('code');
+        if (!code) return;
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'code-copy-btn';
+        copyBtn.textContent = 'Копировать';
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(code.textContent);
+                copyBtn.textContent = 'Скопировано!';
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.textContent = 'Копировать';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Ошибка копирования:', err);
+            }
+        });
+        
+        pre.style.position = 'relative';
+        pre.appendChild(copyBtn);
+    });
+}
+
+// Настройка мобильного меню
+function setupMobileMenu() {
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+}
+
+function closeMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.remove('active');
+}
+
+// Настройка печати
+function setupPrint() {
+    const printBtn = document.getElementById('printBtn');
+    printBtn.addEventListener('click', () => {
+        window.print();
+    });
+}
+
+// Загрузка кэша содержимого файлов для поиска
+async function loadContentCache() {
+    try {
+        const response = await fetch(`${LECTURES_PATH}/index.json`);
+        if (response.ok) {
+            const fileListData = await response.json();
+            const files = fileListData.files || [];
+            
+            // Загружаем содержимое файлов для поиска
+            for (const file of files.slice(0, 10)) { // Ограничиваем для производительности
+                try {
+                    const fileResponse = await fetch(`${LECTURES_PATH}/${file.path}`);
+                    if (fileResponse.ok) {
+                        const content = await fileResponse.text();
+                        contentCache.set(file.path, content.toLowerCase());
+                    }
+                } catch (err) {
+                    console.warn(`Не удалось загрузить содержимое файла ${file.path}:`, err);
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('Не удалось загрузить кэш содержимого:', error);
+    }
+}
+
+// Поиск по содержимому файлов
+async function searchInFileContents(query) {
+    const fileTree = document.getElementById('fileTree');
+    const fileItems = fileTree.querySelectorAll('.file-item');
+    const results = new Set();
+    
+    // Сначала ищем по названиям файлов
+    fileItems.forEach(item => {
+        const name = item.querySelector('.name').textContent;
+        if (name.toLowerCase().includes(query)) {
+            const filePath = item.dataset.path;
+            if (filePath) results.add(filePath);
+        }
+    });
+    
+    // Ищем в кэше содержимого
+    for (const [filePath, content] of contentCache.entries()) {
+        if (content.includes(query.toLowerCase())) {
+            results.add(filePath);
+        }
+    }
+    
+    // Загружаем и проверяем файлы, которых нет в кэше (ограничиваем для производительности)
+    const fileItemsArray = Array.from(fileItems).slice(0, 20);
+    for (const item of fileItemsArray) {
+        const filePath = item.dataset.path;
+        if (!filePath || contentCache.has(filePath)) continue;
+        
+        try {
+            const response = await fetch(`${LECTURES_PATH}/${filePath}`);
+            if (response.ok) {
+                const content = await response.text();
+                contentCache.set(filePath, content.toLowerCase());
+                if (content.toLowerCase().includes(query)) {
+                    results.add(filePath);
+                }
+            }
+        } catch (err) {
+            // Игнорируем ошибки загрузки
+        }
+    }
+    
+    // Фильтруем дерево файлов
+    let hasResults = false;
+    fileItems.forEach(item => {
+        const name = item.querySelector('.name').textContent;
+        const filePath = item.dataset.path;
+        const matches = filePath && results.has(filePath) || name.toLowerCase().includes(query);
+        
+        if (matches) {
+            item.style.display = '';
+            hasResults = true;
+            // Показываем родительские папки
+            let parent = item.parentElement;
+            while (parent && parent.classList.contains('folder-content')) {
+                parent.style.display = 'block';
+                parent.previousElementSibling?.classList.add('expanded');
+                parent.classList.add('expanded');
+                parent = parent.parentElement;
+            }
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Если результатов нет, показываем сообщение
+    const existingNoResults = fileTree.querySelector('.no-results');
+    if (!hasResults && query !== '') {
+        if (!existingNoResults) {
+            const noResults = document.createElement('div');
+            noResults.className = 'no-results';
+            noResults.style.cssText = 'padding: 20px; color: #999; text-align: center;';
+            noResults.textContent = 'Ничего не найдено';
+            fileTree.appendChild(noResults);
+        }
+    } else if (existingNoResults) {
+        existingNoResults.remove();
+    }
+}
 

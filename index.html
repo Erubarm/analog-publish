@@ -6,15 +6,25 @@
     <title>Лекции</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" id="highlight-light">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="highlight-dark" media="none">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
     <div class="container">
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h1>📚 Лекции</h1>
+                <button class="theme-toggle" id="themeToggle" title="Переключить тему">
+                    <span class="theme-icon">🌙</span>
+                </button>
             </div>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Поиск лекций...">
+                <input type="text" id="searchInput" placeholder="Поиск по названиям...">
+                <label class="search-toggle">
+                    <input type="checkbox" id="searchInContent">
+                    <span>Искать в содержимом</span>
+                </label>
             </div>
             <nav class="file-tree" id="fileTree">
                 <div style="padding: 20px; color: #999;">Загрузка...</div>
@@ -23,15 +33,31 @@
         
         <main class="content">
             <div class="content-header">
-                <h2 id="currentFile">Выберите лекцию</h2>
+                <div class="header-top">
+                    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+                    <h2 id="currentFile">Выберите лекцию</h2>
+                    <div class="header-actions">
+                        <button class="toc-toggle" id="tocToggle" title="Таблица содержания">📑</button>
+                        <button class="print-btn" id="printBtn" title="Печать">🖨️</button>
+                    </div>
+                </div>
                 <div class="breadcrumbs" id="breadcrumbs"></div>
             </div>
-            <article class="markdown-content" id="markdownContent">
-                <div class="welcome-message">
-                    <h1>Добро пожаловать!</h1>
-                    <p>Выберите лекцию из списка слева, чтобы начать чтение.</p>
-                </div>
-            </article>
+            <div class="content-wrapper">
+                <aside class="toc-sidebar" id="tocSidebar">
+                    <div class="toc-header">
+                        <h3>Содержание</h3>
+                        <button class="toc-close" id="tocClose">×</button>
+                    </div>
+                    <nav class="toc-nav" id="tocNav"></nav>
+                </aside>
+                <article class="markdown-content" id="markdownContent">
+                    <div class="welcome-message">
+                        <h1>Добро пожаловать!</h1>
+                        <p>Выберите лекцию из списка слева, чтобы начать чтение.</p>
+                    </div>
+                </article>
+            </div>
         </main>
     </div>
     
