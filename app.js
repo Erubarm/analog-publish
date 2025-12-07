@@ -13,9 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSearch();
     setupHashNavigation();
     setupTheme();
-    setupTOC();
     setupMobileMenu();
-    setupPrint();
 });
 
 // Загрузка структуры файлов
@@ -222,9 +220,6 @@ function displayMarkdown(markdown, filePath) {
     });
     breadcrumbs.innerHTML = breadcrumbParts.join('');
     
-    // Обновляем таблицу содержания
-    updateTOC();
-    
     // Прокручиваем вверх
     content.scrollTop = 0;
     
@@ -343,101 +338,6 @@ function updateThemeIcon(theme) {
     }
 }
 
-// Настройка таблицы содержания
-function setupTOC() {
-    const tocToggle = document.getElementById('tocToggle');
-    const tocClose = document.getElementById('tocClose');
-    const tocSidebar = document.getElementById('tocSidebar');
-    
-    tocToggle.addEventListener('click', () => {
-        tocSidebar.classList.toggle('active');
-    });
-    
-    tocClose.addEventListener('click', () => {
-        tocSidebar.classList.remove('active');
-    });
-}
-
-function updateTOC() {
-    const content = document.getElementById('markdownContent');
-    const tocNav = document.getElementById('tocNav');
-    const headings = content.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    
-    if (headings.length === 0) {
-        tocNav.innerHTML = '<div style="padding: 10px; color: var(--text-secondary);">Нет заголовков</div>';
-        return;
-    }
-    
-    let tocHTML = '<ul class="toc-nav">';
-    let currentLevel = 0;
-    
-    headings.forEach((heading, index) => {
-        const level = parseInt(heading.tagName.substring(1));
-        const id = `heading-${index}`;
-        heading.id = id;
-        
-        if (level > currentLevel) {
-            tocHTML += '<ul>';
-        } else if (level < currentLevel) {
-            tocHTML += '</ul>'.repeat(currentLevel - level);
-        }
-        
-        tocHTML += `<li><a href="#${id}" data-heading-id="${id}">${escapeHtml(heading.textContent)}</a></li>`;
-        currentLevel = level;
-    });
-    
-    tocHTML += '</ul>'.repeat(currentLevel) + '</ul>';
-    tocNav.innerHTML = tocHTML;
-    
-    // Добавляем обработчики для плавной прокрутки
-    tocNav.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const targetId = link.getAttribute('href').substring(1);
-            const target = document.getElementById(targetId);
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                // Обновляем активный элемент в TOC
-                tocNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-                link.classList.add('active');
-            }
-        });
-    });
-    
-    // Отслеживаем прокрутку для подсветки активного заголовка
-    let ticking = false;
-    window.addEventListener('scroll', () => {
-        if (!ticking) {
-            window.requestAnimationFrame(() => {
-                updateActiveTOCItem();
-                ticking = false;
-            });
-            ticking = true;
-        }
-    });
-}
-
-function updateActiveTOCItem() {
-    const content = document.getElementById('markdownContent');
-    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
-    const scrollPos = window.scrollY + 100;
-    
-    let currentHeading = null;
-    for (let i = headings.length - 1; i >= 0; i--) {
-        if (headings[i].offsetTop <= scrollPos) {
-            currentHeading = headings[i];
-            break;
-        }
-    }
-    
-    const tocNav = document.getElementById('tocNav');
-    tocNav.querySelectorAll('a').forEach(a => {
-        a.classList.remove('active');
-        if (currentHeading && a.getAttribute('href') === `#${currentHeading.id}`) {
-            a.classList.add('active');
-        }
-    });
-}
 
 // Добавление кнопок копирования для блоков кода
 function addCopyButtons() {
@@ -495,14 +395,5 @@ function closeMobileMenu() {
     sidebarOverlay.classList.remove('active');
 }
 
-// Настройка печати
-function setupPrint() {
-    const printBtn = document.getElementById('printBtn');
-    printBtn.addEventListener('click', () => {
-        window.print();
-    });
-}
-
-// Поиск по содержимому файлов удален
 
 
