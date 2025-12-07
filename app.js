@@ -404,37 +404,59 @@ function setupMobileMenu() {
         return;
     }
     
-    // Обработка клика и touch для лучшей поддержки мобильных
+    // Убеждаемся, что кнопка имеет правильный тип
+    if (mobileMenuToggle.tagName === 'BUTTON') {
+        mobileMenuToggle.type = 'button';
+    }
+    
+    // Функция открытия меню
+    const openMenu = () => {
+        sidebar.classList.add('active');
+        sidebarOverlay.classList.add('active');
+        // Блокируем прокрутку body когда меню открыто
+        document.body.style.overflow = 'hidden';
+    };
+    
+    // Функция закрытия меню
+    const closeMenu = () => {
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+        // Разблокируем прокрутку body
+        document.body.style.overflow = '';
+    };
+    
+    // Функция переключения меню
     const toggleMenu = (e) => {
         if (e) {
             e.preventDefault();
             e.stopPropagation();
         }
-        const isActive = sidebar.classList.contains('active');
-        if (isActive) {
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
+        if (sidebar.classList.contains('active')) {
+            closeMenu();
         } else {
-            sidebar.classList.add('active');
-            sidebarOverlay.classList.add('active');
+            openMenu();
         }
     };
     
-    mobileMenuToggle.addEventListener('click', toggleMenu);
-    mobileMenuToggle.addEventListener('touchend', toggleMenu);
+    // Обработчики для кнопки меню - используем onclick для лучшей совместимости с Safari
+    mobileMenuToggle.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleMenu(e);
+        return false;
+    };
     
     // Закрытие по клику на overlay
-    const closeMenu = (e) => {
-        if (e) {
+    sidebarOverlay.onclick = function(e) {
+        if (e.target === sidebarOverlay) {
             e.preventDefault();
             e.stopPropagation();
+            closeMenu();
+            return false;
         }
-        sidebar.classList.remove('active');
-        sidebarOverlay.classList.remove('active');
     };
     
-    sidebarOverlay.addEventListener('click', closeMenu);
-    sidebarOverlay.addEventListener('touchend', closeMenu);
+    // Закрытие при клике на ссылку в меню (уже обрабатывается в loadFile)
 }
 
 function closeMobileMenu() {
@@ -442,6 +464,8 @@ function closeMobileMenu() {
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     if (sidebar) sidebar.classList.remove('active');
     if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+    // Разблокируем прокрутку body
+    document.body.style.overflow = '';
 }
 
 
