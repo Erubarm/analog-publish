@@ -517,18 +517,11 @@ body {
     }
     
     /* Скрываем бургер когда sidebar открыт */
-    .sidebar.active + * .mobile-menu-toggle,
-    body:has(.sidebar.active) .mobile-menu-toggle {
+    body.sidebar-active .mobile-menu-toggle {
         z-index: 998;
         opacity: 0;
         pointer-events: none;
-    }
-    
-    /* Альтернативный способ для браузеров без поддержки :has() */
-    .sidebar-active .mobile-menu-toggle {
-        z-index: 998;
-        opacity: 0;
-        pointer-events: none;
+        visibility: hidden;
     }
     
     .content {

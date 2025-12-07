@@ -199,6 +199,11 @@ function displayMarkdown(markdown, filePath) {
     const content = document.getElementById('markdownContent');
     const currentFileTitle = document.getElementById('currentFile');
     
+    if (!content) {
+        console.error('Элемент markdownContent не найден');
+        return;
+    }
+    
     // Настраиваем marked для работы с highlight.js
     marked.setOptions({
         highlight: function(code, lang) {
@@ -408,6 +413,12 @@ function setupMobileMenu() {
         document.body.classList.add('sidebar-active');
         // Блокируем прокрутку body когда меню открыто
         document.body.style.overflow = 'hidden';
+        // Убеждаемся, что бургер скрыт
+        if (mobileMenuToggle) {
+            mobileMenuToggle.style.opacity = '0';
+            mobileMenuToggle.style.pointerEvents = 'none';
+            mobileMenuToggle.style.visibility = 'hidden';
+        }
     };
     
     // Функция закрытия меню
@@ -418,6 +429,12 @@ function setupMobileMenu() {
         document.body.classList.remove('sidebar-active');
         // Разблокируем прокрутку body
         document.body.style.overflow = '';
+        // Показываем бургер обратно
+        if (mobileMenuToggle) {
+            mobileMenuToggle.style.opacity = '';
+            mobileMenuToggle.style.pointerEvents = '';
+            mobileMenuToggle.style.visibility = '';
+        }
     };
     
     // Функция переключения меню
