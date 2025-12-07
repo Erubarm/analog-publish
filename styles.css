@@ -195,11 +195,14 @@ body {
 
 .markdown-content {
     padding: 40px;
+    padding-bottom: 60px;
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
     flex: 1;
     overflow-y: auto;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
 }
 
 .welcome-message {
@@ -451,6 +454,10 @@ body {
     color: var(--text-secondary);
 }
 
+[data-theme="dark"] .markdown-content {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
 /* Print Styles */
 @media print {
     .sidebar,
@@ -540,6 +547,7 @@ body {
     
     .markdown-content {
         padding: 20px;
+        padding-bottom: 40px;
     }
 }
 
