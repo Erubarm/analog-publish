@@ -9,11 +9,25 @@ let currentFile = null;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadFileTree();
-    setupSearch();
-    setupHashNavigation();
-    setupTheme();
-    setupMobileMenu();
+    try {
+        await loadFileTree();
+        setupSearch();
+        setupHashNavigation();
+        setupTheme();
+        setupMobileMenu();
+    } catch (error) {
+        console.error('Ошибка инициализации:', error);
+        // Показываем сообщение об ошибке пользователю
+        const content = document.getElementById('markdownContent');
+        if (content) {
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #d32f2f;">
+                    <h2>Ошибка загрузки</h2>
+                    <p>Произошла ошибка при загрузке приложения. Пожалуйста, обновите страницу.</p>
+                </div>
+            `;
+        }
+    }
 });
 
 // Загрузка структуры файлов
@@ -230,6 +244,7 @@ function displayMarkdown(markdown, filePath) {
 // Настройка поиска
 function setupSearch() {
     const searchInput = document.getElementById('searchInput');
+    if (!searchInput) return;
     
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
@@ -294,6 +309,8 @@ window.expandToPath = function(path) {
 // Настройка темы
 function setupTheme() {
     const themeToggle = document.getElementById('themeToggle');
+    if (!themeToggle) return;
+    
     const currentTheme = localStorage.getItem('theme') || 'light';
     
     document.documentElement.setAttribute('data-theme', currentTheme);
@@ -309,32 +326,38 @@ function setupTheme() {
         // Перезагружаем подсветку кода при смене темы
         if (currentFile) {
             const content = document.getElementById('markdownContent');
-            const codeBlocks = content.querySelectorAll('pre code');
-            codeBlocks.forEach(code => {
-                const lang = code.className.match(/language-(\w+)/)?.[1];
-                if (lang && hljs.getLanguage(lang)) {
-                    code.innerHTML = hljs.highlight(code.textContent, { language: lang }).value;
-                } else {
-                    code.innerHTML = hljs.highlightAuto(code.textContent).value;
-                }
-            });
+            if (content) {
+                const codeBlocks = content.querySelectorAll('pre code');
+                codeBlocks.forEach(code => {
+                    const lang = code.className.match(/language-(\w+)/)?.[1];
+                    if (lang && hljs.getLanguage(lang)) {
+                        code.innerHTML = hljs.highlight(code.textContent, { language: lang }).value;
+                    } else {
+                        code.innerHTML = hljs.highlightAuto(code.textContent).value;
+                    }
+                });
+            }
         }
     });
 }
 
 function updateThemeIcon(theme) {
     const icon = document.querySelector('.theme-icon');
-    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (icon) {
+        icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
     
     // Переключаем стили highlight.js
     const lightStyle = document.getElementById('highlight-light');
     const darkStyle = document.getElementById('highlight-dark');
-    if (theme === 'dark') {
-        lightStyle.media = 'none';
-        darkStyle.media = 'all';
-    } else {
-        lightStyle.media = 'all';
-        darkStyle.media = 'none';
+    if (lightStyle && darkStyle) {
+        if (theme === 'dark') {
+            lightStyle.media = 'none';
+            darkStyle.media = 'all';
+        } else {
+            lightStyle.media = 'all';
+            darkStyle.media = 'none';
+        }
     }
 }
 
@@ -376,23 +399,49 @@ function setupMobileMenu() {
     const sidebar = document.querySelector('.sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     
-    mobileMenuToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('active');
-        sidebarOverlay.classList.toggle('active');
-    });
+    if (!mobileMenuToggle || !sidebar || !sidebarOverlay) {
+        console.warn('Элементы мобильного меню не найдены');
+        return;
+    }
+    
+    // Обработка клика и touch для лучшей поддержки мобильных
+    const toggleMenu = (e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const isActive = sidebar.classList.contains('active');
+        if (isActive) {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        } else {
+            sidebar.classList.add('active');
+            sidebarOverlay.classList.add('active');
+        }
+    };
+    
+    mobileMenuToggle.addEventListener('click', toggleMenu);
+    mobileMenuToggle.addEventListener('touchend', toggleMenu);
     
     // Закрытие по клику на overlay
-    sidebarOverlay.addEventListener('click', () => {
+    const closeMenu = (e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
-    });
+    };
+    
+    sidebarOverlay.addEventListener('click', closeMenu);
+    sidebarOverlay.addEventListener('touchend', closeMenu);
 }
 
 function closeMobileMenu() {
     const sidebar = document.querySelector('.sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
-    sidebar.classList.remove('active');
-    sidebarOverlay.classList.remove('active');
+    if (sidebar) sidebar.classList.remove('active');
+    if (sidebarOverlay) sidebarOverlay.classList.remove('active');
 }
 
 
