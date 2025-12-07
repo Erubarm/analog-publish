@@ -34,8 +34,8 @@ body {
 /* Sidebar */
 .sidebar {
     width: 300px;
-    background-color: var(--bg-sidebar);
-    color: var(--text-sidebar);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--border);
@@ -44,37 +44,38 @@ body {
 
 .sidebar-header {
     padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border);
 }
 
 .sidebar-header h1 {
     font-size: 24px;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .search-box {
     padding: 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border);
 }
 
 .search-box input {
     width: 100%;
     padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--border);
     border-radius: 6px;
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-sidebar);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .search-box input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-secondary);
 }
 
 .search-box input:focus {
     outline: none;
     border-color: var(--accent);
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--bg-primary);
 }
 
 .file-tree {
@@ -84,23 +85,28 @@ body {
 }
 
 .file-item {
-    padding: 8px 12px;
-    margin: 2px 0;
+    padding: 6px 12px;
+    margin: 1px 0;
     border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     gap: 8px;
+    border-left: 2px solid transparent;
+    color: var(--text-primary);
 }
 
 .file-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--bg-secondary);
+    border-left-color: var(--accent);
 }
 
 .file-item.active {
-    background-color: var(--accent);
-    color: white;
+    background-color: var(--bg-secondary);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
 }
 
 .file-item .icon {
@@ -118,17 +124,20 @@ body {
 }
 
 .folder-header {
-    padding: 8px 12px;
+    padding: 6px 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
     border-radius: 4px;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    color: var(--text-primary);
+    border-left: 2px solid transparent;
 }
 
 .folder-header:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: var(--bg-secondary);
+    border-left-color: var(--accent);
 }
 
 .folder-header .icon {
@@ -141,7 +150,9 @@ body {
 }
 
 .folder-content {
-    margin-left: 20px;
+    margin-left: 16px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
     display: none;
 }
 
@@ -195,14 +206,22 @@ body {
 
 .markdown-content {
     padding: 40px;
-    padding-bottom: 60px;
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
     flex: 1;
     overflow-y: auto;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
+    position: relative;
+}
+
+.markdown-content::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin-top: 40px;
+    margin-bottom: 20px;
 }
 
 .welcome-message {
@@ -454,8 +473,8 @@ body {
     color: var(--text-secondary);
 }
 
-[data-theme="dark"] .markdown-content {
-    border-color: rgba(255, 255, 255, 0.15);
+[data-theme="dark"] .markdown-content::after {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 /* Print Styles */
@@ -547,7 +566,11 @@ body {
     
     .markdown-content {
         padding: 20px;
-        padding-bottom: 40px;
+    }
+    
+    .markdown-content::after {
+        margin-top: 20px;
+        margin-bottom: 20px;
     }
 }
 
