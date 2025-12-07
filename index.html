@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лекции</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>📚 Лекции</h1>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Поиск лекций...">
+            </div>
+            <nav class="file-tree" id="fileTree">
+                <div style="padding: 20px; color: #999;">Загрузка...</div>
+            </nav>
+        </aside>
+        
+        <main class="content">
+            <div class="content-header">
+                <h2 id="currentFile">Выберите лекцию</h2>
+                <div class="breadcrumbs" id="breadcrumbs"></div>
+            </div>
+            <article class="markdown-content" id="markdownContent">
+                <div class="welcome-message">
+                    <h1>Добро пожаловать!</h1>
+                    <p>Выберите лекцию из списка слева, чтобы начать чтение.</p>
+                </div>
+            </article>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
+

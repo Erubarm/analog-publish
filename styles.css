@@ -1,0 +1,340 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-sidebar: #2d2d2d;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-sidebar: #e0e0e0;
+    --accent: #4a9eff;
+    --accent-hover: #357abd;
+    --border: #e0e0e0;
+    --code-bg: #f4f4f4;
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    line-height: 1.6;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 300px;
+    background-color: var(--bg-sidebar);
+    color: var(--text-sidebar);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.search-box {
+    padding: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-sidebar);
+    font-size: 14px;
+}
+
+.search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.file-tree {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.file-item {
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-item.active {
+    background-color: var(--accent);
+    color: white;
+}
+
+.file-item .icon {
+    font-size: 16px;
+}
+
+.file-item .name {
+    flex: 1;
+    font-size: 14px;
+    word-break: break-word;
+}
+
+.folder-item {
+    margin: 4px 0;
+}
+
+.folder-header {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.folder-header:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.folder-header .icon {
+    font-size: 14px;
+    transition: transform 0.2s;
+}
+
+.folder-header.expanded .icon {
+    transform: rotate(90deg);
+}
+
+.folder-content {
+    margin-left: 20px;
+    display: none;
+}
+
+.folder-content.expanded {
+    display: block;
+}
+
+/* Main Content */
+.content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background-color: var(--bg-primary);
+}
+
+.content-header {
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.content-header h2 {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.breadcrumbs {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.breadcrumbs a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+    text-decoration: underline;
+}
+
+.markdown-content {
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.welcome-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.welcome-message h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+/* Markdown Styles */
+.markdown-content h1 {
+    font-size: 32px;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+}
+
+.markdown-content h2 {
+    font-size: 26px;
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+.markdown-content h3 {
+    font-size: 22px;
+    margin-top: 20px;
+    margin-bottom: 12px;
+}
+
+.markdown-content h4 {
+    font-size: 18px;
+    margin-top: 15px;
+    margin-bottom: 10px;
+}
+
+.markdown-content p {
+    margin-bottom: 15px;
+    line-height: 1.8;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: 15px;
+    padding-left: 30px;
+}
+
+.markdown-content li {
+    margin-bottom: 8px;
+}
+
+.markdown-content code {
+    background-color: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.markdown-content pre {
+    background-color: var(--code-bg);
+    padding: 15px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid var(--accent);
+    padding-left: 20px;
+    margin: 20px 0;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.markdown-content th,
+.markdown-content td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.markdown-content th {
+    background-color: var(--bg-secondary);
+    font-weight: 600;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    margin: 20px 0;
+}
+
+.markdown-content a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+.markdown-content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 30px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        height: 40vh;
+    }
+    
+    .content {
+        height: 60vh;
+    }
+    
+    .markdown-content {
+        padding: 20px;
+    }
+}
+

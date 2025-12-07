@@ -1,0 +1,19 @@
+{
+  "name": "analog-obsidian-publish",
+  "version": "1.0.0",
+  "description": "Аналог Obsidian Publish для GitHub Pages - статический сайт для публикации лекций в формате Markdown",
+  "main": "index.html",
+  "scripts": {
+    "generate-index": "node generate-index.js",
+    "serve": "npx http-server -p 8000"
+  },
+  "keywords": [
+    "markdown",
+    "lectures",
+    "github-pages",
+    "static-site"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+
