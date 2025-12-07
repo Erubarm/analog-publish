@@ -162,9 +162,15 @@ body {
     padding: 20px 40px;
     border-bottom: 1px solid var(--border);
     background-color: var(--bg-secondary);
-    position: sticky;
-    top: 0;
-    z-index: 10;
+}
+
+/* Фиксация заголовка только на десктопе */
+@media (min-width: 769px) {
+    .content-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
 }
 
 .content-header h2 {
@@ -592,11 +598,8 @@ body {
         width: 100%;
     }
     
-    /* Убираем фиксацию заголовка в мобильной версии */
     .content-header {
         padding: 15px 20px;
-        position: relative;
-        top: auto;
     }
     
     .markdown-content {
