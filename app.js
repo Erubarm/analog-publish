@@ -198,7 +198,6 @@ async function loadFile(filePath) {
 function displayMarkdown(markdown, filePath) {
     const content = document.getElementById('markdownContent');
     const currentFileTitle = document.getElementById('currentFile');
-    const breadcrumbs = document.getElementById('breadcrumbs');
     
     // Настраиваем marked для работы с highlight.js
     marked.setOptions({
@@ -222,17 +221,9 @@ function displayMarkdown(markdown, filePath) {
     
     // Обновляем заголовок
     const fileName = filePath.split('/').pop().replace('.md', '');
-    currentFileTitle.textContent = fileName;
-    
-    // Обновляем breadcrumbs
-    const pathParts = filePath.split('/');
-    const breadcrumbParts = pathParts.map((part, index) => {
-        if (index === pathParts.length - 1) {
-            return `<span>${escapeHtml(part.replace('.md', ''))}</span>`;
-        }
-        return `<a href="#" onclick="event.preventDefault(); expandToPath('${pathParts.slice(0, index + 1).join('/')}')">${escapeHtml(part)}</a> / `;
-    });
-    breadcrumbs.innerHTML = breadcrumbParts.join('');
+    if (currentFileTitle) {
+        currentFileTitle.textContent = fileName;
+    }
     
     // Прокручиваем вверх
     content.scrollTop = 0;
@@ -413,6 +404,8 @@ function setupMobileMenu() {
     const openMenu = () => {
         sidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
+        // Добавляем класс к body для скрытия бургера
+        document.body.classList.add('sidebar-active');
         // Блокируем прокрутку body когда меню открыто
         document.body.style.overflow = 'hidden';
     };
@@ -421,6 +414,8 @@ function setupMobileMenu() {
     const closeMenu = () => {
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
+        // Убираем класс из body
+        document.body.classList.remove('sidebar-active');
         // Разблокируем прокрутку body
         document.body.style.overflow = '';
     };
@@ -464,6 +459,8 @@ function closeMobileMenu() {
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     if (sidebar) sidebar.classList.remove('active');
     if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+    // Убираем класс из body
+    document.body.classList.remove('sidebar-active');
     // Разблокируем прокрутку body
     document.body.style.overflow = '';
 }
