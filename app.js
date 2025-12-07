@@ -7,9 +7,6 @@ const fileCache = new Map();
 // Текущий выбранный файл
 let currentFile = null;
 
-// Кэш для содержимого файлов (для поиска)
-const contentCache = new Map();
-
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
     await loadFileTree();
@@ -19,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupTOC();
     setupMobileMenu();
     setupPrint();
-    loadContentCache();
 });
 
 // Загрузка структуры файлов
@@ -239,20 +235,10 @@ function displayMarkdown(markdown, filePath) {
 // Настройка поиска
 function setupSearch() {
     const searchInput = document.getElementById('searchInput');
-    const searchInContent = document.getElementById('searchInContent');
     
-    searchInput.addEventListener('input', async (e) => {
+    searchInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
-        if (query === '') {
-            filterFileTree('');
-            return;
-        }
-        
-        if (searchInContent.checked) {
-            await searchInFileContents(query);
-        } else {
-            filterFileTree(query);
-        }
+        filterFileTree(query);
     });
 }
 
@@ -488,15 +474,25 @@ function addCopyButtons() {
 function setupMobileMenu() {
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
     
     mobileMenuToggle.addEventListener('click', () => {
         sidebar.classList.toggle('active');
+        sidebarOverlay.classList.toggle('active');
+    });
+    
+    // Закрытие по клику на overlay
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
     });
 }
 
 function closeMobileMenu() {
     const sidebar = document.querySelector('.sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
     sidebar.classList.remove('active');
+    sidebarOverlay.classList.remove('active');
 }
 
 // Настройка печати
@@ -507,109 +503,6 @@ function setupPrint() {
     });
 }
 
-// Загрузка кэша содержимого файлов для поиска
-async function loadContentCache() {
-    try {
-        const response = await fetch(`${LECTURES_PATH}/index.json`);
-        if (response.ok) {
-            const fileListData = await response.json();
-            const files = fileListData.files || [];
-            
-            // Загружаем содержимое файлов для поиска
-            for (const file of files.slice(0, 10)) { // Ограничиваем для производительности
-                try {
-                    const fileResponse = await fetch(`${LECTURES_PATH}/${file.path}`);
-                    if (fileResponse.ok) {
-                        const content = await fileResponse.text();
-                        contentCache.set(file.path, content.toLowerCase());
-                    }
-                } catch (err) {
-                    console.warn(`Не удалось загрузить содержимое файла ${file.path}:`, err);
-                }
-            }
-        }
-    } catch (error) {
-        console.warn('Не удалось загрузить кэш содержимого:', error);
-    }
-}
+// Поиск по содержимому файлов удален
 
-// Поиск по содержимому файлов
-async function searchInFileContents(query) {
-    const fileTree = document.getElementById('fileTree');
-    const fileItems = fileTree.querySelectorAll('.file-item');
-    const results = new Set();
-    
-    // Сначала ищем по названиям файлов
-    fileItems.forEach(item => {
-        const name = item.querySelector('.name').textContent;
-        if (name.toLowerCase().includes(query)) {
-            const filePath = item.dataset.path;
-            if (filePath) results.add(filePath);
-        }
-    });
-    
-    // Ищем в кэше содержимого
-    for (const [filePath, content] of contentCache.entries()) {
-        if (content.includes(query.toLowerCase())) {
-            results.add(filePath);
-        }
-    }
-    
-    // Загружаем и проверяем файлы, которых нет в кэше (ограничиваем для производительности)
-    const fileItemsArray = Array.from(fileItems).slice(0, 20);
-    for (const item of fileItemsArray) {
-        const filePath = item.dataset.path;
-        if (!filePath || contentCache.has(filePath)) continue;
-        
-        try {
-            const response = await fetch(`${LECTURES_PATH}/${filePath}`);
-            if (response.ok) {
-                const content = await response.text();
-                contentCache.set(filePath, content.toLowerCase());
-                if (content.toLowerCase().includes(query)) {
-                    results.add(filePath);
-                }
-            }
-        } catch (err) {
-            // Игнорируем ошибки загрузки
-        }
-    }
-    
-    // Фильтруем дерево файлов
-    let hasResults = false;
-    fileItems.forEach(item => {
-        const name = item.querySelector('.name').textContent;
-        const filePath = item.dataset.path;
-        const matches = filePath && results.has(filePath) || name.toLowerCase().includes(query);
-        
-        if (matches) {
-            item.style.display = '';
-            hasResults = true;
-            // Показываем родительские папки
-            let parent = item.parentElement;
-            while (parent && parent.classList.contains('folder-content')) {
-                parent.style.display = 'block';
-                parent.previousElementSibling?.classList.add('expanded');
-                parent.classList.add('expanded');
-                parent = parent.parentElement;
-            }
-        } else {
-            item.style.display = 'none';
-        }
-    });
-    
-    // Если результатов нет, показываем сообщение
-    const existingNoResults = fileTree.querySelector('.no-results');
-    if (!hasResults && query !== '') {
-        if (!existingNoResults) {
-            const noResults = document.createElement('div');
-            noResults.className = 'no-results';
-            noResults.style.cssText = 'padding: 20px; color: #999; text-align: center;';
-            noResults.textContent = 'Ничего не найдено';
-            fileTree.appendChild(noResults);
-        }
-    } else if (existingNoResults) {
-        existingNoResults.remove();
-    }
-}
 

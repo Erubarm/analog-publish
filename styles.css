@@ -343,20 +343,6 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* Search Toggle */
-.search-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-}
-
-.search-toggle input[type="checkbox"] {
-    cursor: pointer;
-}
 
 /* Content Header Improvements */
 .header-top {
@@ -575,10 +561,27 @@ body {
         height: 100vh;
         z-index: 1000;
         transition: left 0.3s;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
     }
     
     .sidebar.active {
         left: 0;
+    }
+    
+    /* Overlay для закрытия sidebar */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
     }
     
     .mobile-menu-toggle {
@@ -589,8 +592,11 @@ body {
         width: 100%;
     }
     
+    /* Убираем фиксацию заголовка в мобильной версии */
     .content-header {
         padding: 15px 20px;
+        position: relative;
+        top: auto;
     }
     
     .markdown-content {
@@ -604,6 +610,7 @@ body {
         height: 100vh;
         z-index: 999;
         transition: right 0.3s;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     }
     
     .toc-sidebar.active {
