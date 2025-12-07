@@ -540,21 +540,17 @@ body {
         min-width: 44px;
         min-height: 44px;
         transition: opacity 0.3s ease;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
     }
     
-    /* Скрываем бургер когда sidebar открыт */
+    /* Скрываем бургер ТОЛЬКО когда sidebar открыт */
     body.sidebar-active .mobile-menu-toggle {
         z-index: 998;
         opacity: 0 !important;
         pointer-events: none !important;
         visibility: hidden !important;
-    }
-    
-    /* Гарантируем видимость бургера когда sidebar закрыт */
-    body:not(.sidebar-active) .mobile-menu-toggle {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        visibility: visible !important;
     }
     
     .content {

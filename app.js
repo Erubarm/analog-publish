@@ -236,18 +236,17 @@ function displayMarkdown(markdown, filePath) {
     // Закрываем мобильное меню если открыто и гарантируем видимость бургера
     closeMobileMenu();
     
-    // Дополнительная проверка видимости бургера через requestAnimationFrame
+    // Дополнительная проверка видимости бургера через двойной requestAnimationFrame
     requestAnimationFrame(() => {
-        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-        if (mobileMenuToggle && window.innerWidth <= 768) {
-            // Убеждаемся, что класс sidebar-active удален
-            document.body.classList.remove('sidebar-active');
-            // Удаляем все inline стили
-            mobileMenuToggle.style.removeProperty('opacity');
-            mobileMenuToggle.style.removeProperty('pointer-events');
-            mobileMenuToggle.style.removeProperty('visibility');
-            mobileMenuToggle.style.removeProperty('display');
-        }
+        requestAnimationFrame(() => {
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            if (mobileMenuToggle && window.innerWidth <= 768) {
+                // Убеждаемся, что класс sidebar-active удален
+                document.body.classList.remove('sidebar-active');
+                // Полностью очищаем все inline стили
+                mobileMenuToggle.removeAttribute('style');
+            }
+        });
     });
 }
 
@@ -433,15 +432,13 @@ function setupMobileMenu() {
     const closeMenu = () => {
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
-        // Убираем класс из body (CSS автоматически покажет бургер)
+        // УБИРАЕМ класс из body - это ключевой момент
         document.body.classList.remove('sidebar-active');
         // Разблокируем прокрутку body
         document.body.style.overflow = '';
-        // Убеждаемся, что все inline стили удалены
+        // Полностью удаляем все inline стили
         if (mobileMenuToggle) {
-            mobileMenuToggle.style.removeProperty('opacity');
-            mobileMenuToggle.style.removeProperty('pointer-events');
-            mobileMenuToggle.style.removeProperty('visibility');
+            mobileMenuToggle.removeAttribute('style');
         }
     };
     
@@ -484,29 +481,28 @@ function closeMobileMenu() {
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     
+    // Закрываем sidebar
     if (sidebar) sidebar.classList.remove('active');
     if (sidebarOverlay) sidebarOverlay.classList.remove('active');
     
-    // Убираем класс из body - это автоматически покажет бургер через CSS
+    // УБИРАЕМ класс из body - это ключевой момент для показа бургера
     document.body.classList.remove('sidebar-active');
     
     // Разблокируем прокрутку body
     document.body.style.overflow = '';
     
-    // Удаляем все inline стили, которые могут перекрывать CSS
+    // КРИТИЧНО: Удаляем ВСЕ inline стили, которые могут перекрывать CSS
     if (mobileMenuToggle) {
-        mobileMenuToggle.style.removeProperty('opacity');
-        mobileMenuToggle.style.removeProperty('pointer-events');
-        mobileMenuToggle.style.removeProperty('visibility');
-        mobileMenuToggle.style.removeProperty('display');
+        // Полностью очищаем все стили, которые могли быть установлены
+        mobileMenuToggle.removeAttribute('style');
         
-        // Принудительно применяем стили через requestAnimationFrame для гарантии
+        // Двойная проверка через requestAnimationFrame
         requestAnimationFrame(() => {
-            if (mobileMenuToggle) {
-                mobileMenuToggle.style.opacity = '';
-                mobileMenuToggle.style.pointerEvents = '';
-                mobileMenuToggle.style.visibility = '';
-                mobileMenuToggle.style.display = '';
+            if (mobileMenuToggle && !document.body.classList.contains('sidebar-active')) {
+                // Убеждаемся, что класс действительно удален
+                document.body.classList.remove('sidebar-active');
+                // Полностью очищаем стили еще раз
+                mobileMenuToggle.removeAttribute('style');
             }
         });
     }
