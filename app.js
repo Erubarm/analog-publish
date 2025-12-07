@@ -236,17 +236,19 @@ function displayMarkdown(markdown, filePath) {
     // Закрываем мобильное меню если открыто и гарантируем видимость бургера
     closeMobileMenu();
     
-    // Дополнительная проверка видимости бургера после небольшой задержки
-    setTimeout(() => {
+    // Дополнительная проверка видимости бургера через requestAnimationFrame
+    requestAnimationFrame(() => {
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
         if (mobileMenuToggle && window.innerWidth <= 768) {
-            // Убеждаемся, что бургер виден на мобильных устройствах
+            // Убеждаемся, что класс sidebar-active удален
+            document.body.classList.remove('sidebar-active');
+            // Удаляем все inline стили
             mobileMenuToggle.style.removeProperty('opacity');
             mobileMenuToggle.style.removeProperty('pointer-events');
             mobileMenuToggle.style.removeProperty('visibility');
-            mobileMenuToggle.style.display = '';
+            mobileMenuToggle.style.removeProperty('display');
         }
-    }, 100);
+    });
 }
 
 // Настройка поиска
@@ -421,27 +423,21 @@ function setupMobileMenu() {
     const openMenu = () => {
         sidebar.classList.add('active');
         sidebarOverlay.classList.add('active');
-        // Добавляем класс к body для скрытия бургера
+        // Добавляем класс к body для скрытия бургера (CSS управляет видимостью)
         document.body.classList.add('sidebar-active');
         // Блокируем прокрутку body когда меню открыто
         document.body.style.overflow = 'hidden';
-        // Убеждаемся, что бургер скрыт
-        if (mobileMenuToggle) {
-            mobileMenuToggle.style.opacity = '0';
-            mobileMenuToggle.style.pointerEvents = 'none';
-            mobileMenuToggle.style.visibility = 'hidden';
-        }
     };
     
     // Функция закрытия меню
     const closeMenu = () => {
         sidebar.classList.remove('active');
         sidebarOverlay.classList.remove('active');
-        // Убираем класс из body
+        // Убираем класс из body (CSS автоматически покажет бургер)
         document.body.classList.remove('sidebar-active');
         // Разблокируем прокрутку body
         document.body.style.overflow = '';
-        // Показываем бургер обратно - полностью удаляем inline стили
+        // Убеждаемся, что все inline стили удалены
         if (mobileMenuToggle) {
             mobileMenuToggle.style.removeProperty('opacity');
             mobileMenuToggle.style.removeProperty('pointer-events');
@@ -491,26 +487,28 @@ function closeMobileMenu() {
     if (sidebar) sidebar.classList.remove('active');
     if (sidebarOverlay) sidebarOverlay.classList.remove('active');
     
-    // Убираем класс из body
+    // Убираем класс из body - это автоматически покажет бургер через CSS
     document.body.classList.remove('sidebar-active');
     
     // Разблокируем прокрутку body
     document.body.style.overflow = '';
     
-    // Восстанавливаем видимость бургера - всегда полностью удаляем inline стили
+    // Удаляем все inline стили, которые могут перекрывать CSS
     if (mobileMenuToggle) {
-        // Используем removeProperty для гарантированного удаления
         mobileMenuToggle.style.removeProperty('opacity');
         mobileMenuToggle.style.removeProperty('pointer-events');
         mobileMenuToggle.style.removeProperty('visibility');
+        mobileMenuToggle.style.removeProperty('display');
         
-        // Дополнительно сбрасываем через пустые строки на случай, если removeProperty не сработал
-        mobileMenuToggle.style.opacity = '';
-        mobileMenuToggle.style.pointerEvents = '';
-        mobileMenuToggle.style.visibility = '';
-        
-        // Принудительно показываем элемент
-        mobileMenuToggle.style.display = '';
+        // Принудительно применяем стили через requestAnimationFrame для гарантии
+        requestAnimationFrame(() => {
+            if (mobileMenuToggle) {
+                mobileMenuToggle.style.opacity = '';
+                mobileMenuToggle.style.pointerEvents = '';
+                mobileMenuToggle.style.visibility = '';
+                mobileMenuToggle.style.display = '';
+            }
+        });
     }
 }
 
