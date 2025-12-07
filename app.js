@@ -233,8 +233,20 @@ function displayMarkdown(markdown, filePath) {
     // Прокручиваем вверх
     content.scrollTop = 0;
     
-    // Закрываем мобильное меню если открыто
+    // Закрываем мобильное меню если открыто и гарантируем видимость бургера
     closeMobileMenu();
+    
+    // Дополнительная проверка видимости бургера после небольшой задержки
+    setTimeout(() => {
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        if (mobileMenuToggle && window.innerWidth <= 768) {
+            // Убеждаемся, что бургер виден на мобильных устройствах
+            mobileMenuToggle.style.removeProperty('opacity');
+            mobileMenuToggle.style.removeProperty('pointer-events');
+            mobileMenuToggle.style.removeProperty('visibility');
+            mobileMenuToggle.style.display = '';
+        }
+    }, 100);
 }
 
 // Настройка поиска
@@ -429,11 +441,11 @@ function setupMobileMenu() {
         document.body.classList.remove('sidebar-active');
         // Разблокируем прокрутку body
         document.body.style.overflow = '';
-        // Показываем бургер обратно
+        // Показываем бургер обратно - полностью удаляем inline стили
         if (mobileMenuToggle) {
-            mobileMenuToggle.style.opacity = '';
-            mobileMenuToggle.style.pointerEvents = '';
-            mobileMenuToggle.style.visibility = '';
+            mobileMenuToggle.style.removeProperty('opacity');
+            mobileMenuToggle.style.removeProperty('pointer-events');
+            mobileMenuToggle.style.removeProperty('visibility');
         }
     };
     
@@ -474,12 +486,32 @@ function setupMobileMenu() {
 function closeMobileMenu() {
     const sidebar = document.querySelector('.sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    
     if (sidebar) sidebar.classList.remove('active');
     if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+    
     // Убираем класс из body
     document.body.classList.remove('sidebar-active');
+    
     // Разблокируем прокрутку body
     document.body.style.overflow = '';
+    
+    // Восстанавливаем видимость бургера - всегда полностью удаляем inline стили
+    if (mobileMenuToggle) {
+        // Используем removeProperty для гарантированного удаления
+        mobileMenuToggle.style.removeProperty('opacity');
+        mobileMenuToggle.style.removeProperty('pointer-events');
+        mobileMenuToggle.style.removeProperty('visibility');
+        
+        // Дополнительно сбрасываем через пустые строки на случай, если removeProperty не сработал
+        mobileMenuToggle.style.opacity = '';
+        mobileMenuToggle.style.pointerEvents = '';
+        mobileMenuToggle.style.visibility = '';
+        
+        // Принудительно показываем элемент
+        mobileMenuToggle.style.display = '';
+    }
 }
 
 
