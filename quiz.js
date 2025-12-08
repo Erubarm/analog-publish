@@ -798,18 +798,86 @@ async function handleJoinQuiz() {
     // Сохраняем имя
     localStorage.setItem(STORAGE_KEY_STUDENT_NAME, JSON.stringify({ lastName, firstName }));
     
-    // Добавляем студента в список
-    const saved = localStorage.getItem(STORAGE_KEY_STUDENTS);
-    let studentsList = [];
-    if (saved) {
+    // ВАЖНО: Сначала получаем quizId из активного квиза (с сервера или localStorage)
+    let quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
+    
+    // Если используем API синхронизацию, пытаемся загрузить квиз с сервера для получения quizId
+    if (USE_API_SYNC) {
         try {
-            studentsList = JSON.parse(saved);
-            if (!Array.isArray(studentsList)) {
-                studentsList = [];
+            // Пробуем разные quizId: сначала из localStorage, потом 'default'
+            const possibleQuizIds = [quizId, 'default'];
+            for (const testQuizId of possibleQuizIds) {
+                const quiz = await fetchQuizFromAPI(testQuizId);
+                if (quiz && quiz.id) {
+                    quizId = quiz.id;
+                    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+                    console.log('handleJoinQuiz: получен quizId из сервера:', quizId);
+                    break;
+                }
             }
         } catch (e) {
-            console.error('Ошибка парсинга списка студентов:', e);
-            studentsList = [];
+            console.error('Ошибка загрузки quizId с сервера:', e);
+            // Fallback: пытаемся получить из localStorage квиза
+            const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
+            if (savedQuiz) {
+                try {
+                    const quiz = JSON.parse(savedQuiz);
+                    if (quiz.id) {
+                        quizId = quiz.id;
+                        localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+                        console.log('handleJoinQuiz: получен quizId из localStorage:', quizId);
+                    }
+                } catch (e2) {
+                    console.error('Ошибка получения quizId из localStorage:', e2);
+                }
+            }
+        }
+    } else {
+        // Без API синхронизации - получаем из localStorage
+        const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
+        if (savedQuiz) {
+            try {
+                const quiz = JSON.parse(savedQuiz);
+                if (quiz.id) {
+                    quizId = quiz.id;
+                    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+                    console.log('handleJoinQuiz: получен quizId из localStorage:', quizId);
+                }
+            } catch (e) {
+                console.error('Ошибка получения quizId из localStorage:', e);
+            }
+        }
+    }
+    
+    console.log('handleJoinQuiz: используемый quizId:', quizId);
+    
+    // Загружаем текущий список студентов с сервера (если настроено) или из localStorage
+    let studentsList = [];
+    if (USE_API_SYNC) {
+        try {
+            const serverStudents = await fetchStudentsFromAPI(quizId);
+            if (serverStudents && Array.isArray(serverStudents)) {
+                studentsList = serverStudents;
+                console.log('handleJoinQuiz: загружен список студентов с сервера:', studentsList.length);
+            }
+        } catch (e) {
+            console.error('Ошибка загрузки студентов с сервера:', e);
+        }
+    }
+    
+    // Fallback на localStorage если сервер пустой
+    if (studentsList.length === 0) {
+        const saved = localStorage.getItem(STORAGE_KEY_STUDENTS);
+        if (saved) {
+            try {
+                studentsList = JSON.parse(saved);
+                if (!Array.isArray(studentsList)) {
+                    studentsList = [];
+                }
+            } catch (e) {
+                console.error('Ошибка парсинга списка студентов:', e);
+                studentsList = [];
+            }
         }
     }
     
@@ -829,28 +897,13 @@ async function handleJoinQuiz() {
         const studentsJson = JSON.stringify(studentsList);
         localStorage.setItem(STORAGE_KEY_STUDENTS, studentsJson);
         
-        // Синхронизируем с сервером (если настроено)
-        const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
+        // Синхронизируем с сервером используя правильный quizId
         await syncStudentsToAPI(studentsList, quizId);
         
-        console.log('Студент добавлен:', lastName, firstName, 'Всего студентов:', studentsList.length);
+        console.log('Студент добавлен:', lastName, firstName, 'Всего студентов:', studentsList.length, 'quizId:', quizId);
         console.log('Данные сохранены в localStorage:', studentsJson);
     } else {
         console.log('Студент уже зарегистрирован:', lastName, firstName);
-    }
-    
-    // Сохраняем quizId для синхронизации (если квиз уже создан)
-    const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
-    if (savedQuiz) {
-        try {
-            const quiz = JSON.parse(savedQuiz);
-            if (quiz.id) {
-                localStorage.setItem(STORAGE_KEY_QUIZ_ID, quiz.id);
-                console.log('Студент получил quizId:', quiz.id);
-            }
-        } catch (e) {
-            console.error('Ошибка получения quizId:', e);
-        }
     }
     
     // Переходим к ожиданию
