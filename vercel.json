@@ -1,9 +1,2 @@
-{
-  "rewrites": [
-    {
-      "source": "/api/quiz",
-      "destination": "/api/quiz.js"
-    }
-  ]
-}
+{}
 

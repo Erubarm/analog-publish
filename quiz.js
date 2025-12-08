@@ -50,15 +50,23 @@ async function syncStudentsToAPI(studentsData, quizId = 'default') {
     }
     
     try {
-        const response = await fetch(`${SYNC_API_URL}?type=students&quizId=${quizId}`, {
+        const url = `${SYNC_API_URL}?type=students&quizId=${encodeURIComponent(quizId)}`;
+        console.log('syncStudentsToAPI: отправка данных на', url, 'студентов:', studentsData.length);
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(studentsData)
         });
         
+        console.log('syncStudentsToAPI: статус ответа', response.status);
         if (response.ok) {
+            const result = await response.json();
+            console.log('syncStudentsToAPI: ответ сервера', result);
             localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(studentsData));
             console.log('Студенты синхронизированы с сервером');
+        } else {
+            const errorText = await response.text();
+            console.error('syncStudentsToAPI: ошибка HTTP', response.status, errorText);
         }
     } catch (error) {
         console.error('Ошибка синхронизации студентов:', error);
@@ -96,16 +104,25 @@ async function fetchStudentsFromAPI(quizId = 'default') {
     }
     
     try {
-        const response = await fetch(`${SYNC_API_URL}?type=students&quizId=${quizId}`);
+        const url = `${SYNC_API_URL}?type=students&quizId=${encodeURIComponent(quizId)}`;
+        console.log('fetchStudentsFromAPI: запрос к', url);
+        const response = await fetch(url);
+        console.log('fetchStudentsFromAPI: статус ответа', response.status);
         if (response.ok) {
             const data = await response.json();
+            console.log('fetchStudentsFromAPI: получены данные', data);
             if (data && Array.isArray(data)) {
                 localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(data));
                 return data;
+            } else if (data && data.error) {
+                console.error('fetchStudentsFromAPI: ошибка от сервера', data);
             }
+        } else {
+            const errorText = await response.text();
+            console.error('fetchStudentsFromAPI: ошибка HTTP', response.status, errorText);
         }
     } catch (error) {
-        console.error('Ошибка загрузки студентов:', error);
+        console.error('fetchStudentsFromAPI: ошибка загрузки студентов:', error);
     }
     
     const saved = localStorage.getItem(STORAGE_KEY_STUDENTS);

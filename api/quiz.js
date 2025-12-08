@@ -21,26 +21,45 @@ export default async function handler(req, res) {
         return;
     }
 
-    // Парсим query параметры (Vercel предоставляет их в req.query как объект)
-    // Также проверяем req.url на случай если query не распарсен
+    // Парсим query параметры
+    // Vercel предоставляет их в req.query как объект
+    // Также проверяем req.url для случаев с rewrites
     let type = null;
     let quizId = 'default';
     
+    // Сначала пробуем req.query (стандартный способ для Vercel)
     if (req.query && typeof req.query === 'object') {
         type = req.query.type || null;
         quizId = req.query.quizId || 'default';
     }
     
-    // Fallback: парсим из URL если query не доступен
-    if (!type && req.url) {
-        try {
-            const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-            type = url.searchParams.get('type');
-            quizId = url.searchParams.get('quizId') || 'default';
-        } catch (e) {
-            console.error('Ошибка парсинга URL:', e);
+    // Fallback: парсим из req.url если query не доступен или пустой
+    if (!type) {
+        // Проверяем разные варианты req.url
+        const urlToParse = req.url || (req.headers && req.headers['x-forwarded-url']) || '';
+        if (urlToParse) {
+            try {
+                // Если URL относительный, добавляем протокол и хост
+                const urlString = urlToParse.startsWith('http') 
+                    ? urlToParse 
+                    : `http://${req.headers?.host || 'localhost'}${urlToParse}`;
+                const url = new URL(urlString);
+                type = url.searchParams.get('type');
+                quizId = url.searchParams.get('quizId') || 'default';
+            } catch (e) {
+                console.error('Ошибка парсинга URL:', e, 'urlToParse:', urlToParse);
+            }
         }
     }
+    
+    console.log('API Request parsed:', { 
+        type, 
+        quizId, 
+        method: req.method,
+        'req.query': req.query, 
+        'req.url': req.url,
+        'headers.host': req.headers?.host
+    });
 
     // Парсим body для POST запросов
     let body = null;
