@@ -47,6 +47,17 @@
             <div id="quizControlSection" class="quiz-section" style="display: none;">
                 <h2>Управление квизом: <span id="currentQuizName"></span></h2>
                 
+                <div class="quiz-code-section" style="background: var(--bg-secondary); padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--accent);">
+                    <h3 style="margin-top: 0;">Код комнаты для подключения:</h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="text" id="quizCodeDisplay" readonly class="text-input" style="font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 4px; flex: 1;">
+                        <button id="copyQuizCodeBtn" class="btn btn-secondary" title="Копировать код">📋</button>
+                    </div>
+                    <p style="margin: 10px 0 0 0; color: var(--text-secondary); font-size: 14px;">
+                        Студенты должны ввести этот код для присоединения к квизу
+                    </p>
+                </div>
+                
                 <div class="students-list-section">
                     <h3>Участники (<span id="studentsCount">0</span>)</h3>
                     <button id="refreshStudentsBtn" class="btn btn-primary" style="margin-bottom: 10px;">Обновить список</button>
@@ -79,8 +90,19 @@
                 </div>
             </div>
             
+            <!-- Ввод кода комнаты -->
+            <div id="roomCodeSection" class="quiz-section">
+                <h2>Подключение к квизу</h2>
+                <div class="form-group">
+                    <label for="roomCodeInput">Введите код комнаты:</label>
+                    <input type="text" id="roomCodeInput" placeholder="Введите код комнаты" class="text-input" style="font-size: 20px; text-align: center; letter-spacing: 4px;">
+                </div>
+                <button id="connectToRoomBtn" class="btn btn-primary">Подключиться</button>
+                <div id="roomCodeError" style="color: var(--error); margin-top: 10px; display: none;"></div>
+            </div>
+            
             <!-- Ввод имени -->
-            <div id="nameInputSection" class="quiz-section">
+            <div id="nameInputSection" class="quiz-section" style="display: none;">
                 <h2>Введите ваше имя</h2>
                 <div class="form-group">
                     <label for="studentLastName">Фамилия:</label>

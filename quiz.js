@@ -276,89 +276,167 @@ async function initStudentMode() {
     currentMode = 'student';
     document.getElementById('studentMode').style.display = 'block';
     
-    // Проверяем актуальный статус квиза с сервера (если настроено)
-    const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
-    let quiz = null;
+    // Проверяем, есть ли сохраненный quizId (студент уже подключился к комнате)
+    const savedQuizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID);
+    const savedName = localStorage.getItem(STORAGE_KEY_STUDENT_NAME);
+    const nameData = savedName ? JSON.parse(savedName) : null;
     
-    if (USE_API_SYNC) {
-        try {
-            quiz = await fetchQuizFromAPI(quizId);
-            console.log('initStudentMode: загружен квиз с сервера, статус:', quiz?.status);
-        } catch (e) {
-            console.error('Ошибка загрузки квиза с сервера при инициализации:', e);
-            // Fallback на localStorage
+    // Если студент уже подключился к комнате и ввел имя, проверяем статус квиза
+    if (savedQuizId && nameData && nameData.lastName && nameData.firstName) {
+        // Студент уже подключен - проверяем статус квиза
+        let quiz = null;
+        
+        if (USE_API_SYNC) {
+            try {
+                quiz = await fetchQuizFromAPI(savedQuizId);
+                console.log('initStudentMode: загружен квиз с сервера, статус:', quiz?.status);
+            } catch (e) {
+                console.error('Ошибка загрузки квиза с сервера при инициализации:', e);
+                const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
+                if (saved) {
+                    try {
+                        quiz = JSON.parse(saved);
+                    } catch (e2) {
+                        console.error('Ошибка парсинга квиза из localStorage:', e2);
+                    }
+                }
+            }
+        } else {
             const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
             if (saved) {
                 try {
                     quiz = JSON.parse(saved);
-                } catch (e2) {
-                    console.error('Ошибка парсинга квиза из localStorage:', e2);
+                } catch (e) {
+                    console.error('Ошибка парсинга квиза:', e);
                 }
             }
         }
-    } else {
-        // Используем только localStorage
-        const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
-        if (saved) {
-            try {
-                quiz = JSON.parse(saved);
-            } catch (e) {
-                console.error('Ошибка парсинга квиза:', e);
+        
+        if (quiz) {
+            // Заполняем поля имени
+            document.getElementById('studentLastName').value = nameData.lastName || '';
+            document.getElementById('studentFirstName').value = nameData.firstName || '';
+            document.getElementById('roomCodeSection').style.display = 'none';
+            document.getElementById('nameInputSection').style.display = 'none';
+            
+            // Показываем соответствующий раздел в зависимости от статуса
+            if (quiz.status === 'finished') {
+                showResultsForStudent(quiz);
+            } else if (quiz.status === 'active') {
+                lastQuizStatus = quiz.status;
+                lastQuestionIndex = quiz.currentQuestionIndex || -1;
+                showQuestionForStudent(quiz, false);
+                const questionStartedAt = quiz.currentQuestionStartedAt || quiz.startedAt;
+                startQuestionTimer(questionStartedAt);
+            } else {
+                document.getElementById('waitingSection').style.display = 'block';
             }
+            return;
         }
     }
     
-    // Проверяем, есть ли сохраненное имя
-    const savedName = localStorage.getItem(STORAGE_KEY_STUDENT_NAME);
-    const nameData = savedName ? JSON.parse(savedName) : null;
+    // Студент еще не подключился или квиз не найден - показываем форму ввода кода комнаты
+    document.getElementById('roomCodeSection').style.display = 'block';
+    document.getElementById('nameInputSection').style.display = 'none';
+    document.getElementById('waitingSection').style.display = 'none';
+    document.getElementById('quizTakingSection').style.display = 'none';
+    document.getElementById('resultsSection').style.display = 'none';
+}
+
+// Подключение к комнате по коду
+async function handleConnectToRoom() {
+    const roomCode = document.getElementById('roomCodeInput').value.trim();
     
-    // Если квиз не существует, завершен или в статусе waiting - очищаем состояние студента
-    if (!quiz || quiz.status === 'finished' || quiz.status === 'waiting') {
-        // Очищаем сохраненное имя, чтобы студент мог заново присоединиться
-        if (quiz && quiz.status === 'finished') {
-            // Если квиз завершен, показываем результаты (если студент участвовал)
-            if (nameData && nameData.lastName && nameData.firstName) {
-                showResultsForStudent(quiz);
-                return;
-            }
+    if (!roomCode) {
+        const errorDiv = document.getElementById('roomCodeError');
+        if (errorDiv) {
+            errorDiv.textContent = 'Введите код комнаты';
+            errorDiv.style.display = 'block';
         }
-        
-        // Очищаем сохраненное состояние для нового квиза
-        localStorage.removeItem(STORAGE_KEY_STUDENT_NAME);
-        localStorage.removeItem(STORAGE_KEY_QUIZ);
-        localStorage.removeItem(STORAGE_KEY_QUIZ_ID);
-        
-        // Показываем форму ввода имени заново
-        document.getElementById('nameInputSection').style.display = 'block';
-        document.getElementById('waitingSection').style.display = 'none';
-        document.getElementById('quizTakingSection').style.display = 'none';
-        document.getElementById('resultsSection').style.display = 'none';
-        
-        console.log('initStudentMode: квиз не активен, состояние очищено');
         return;
     }
     
-    // Квиз активен - проверяем, присоединился ли студент
-    if (nameData && nameData.lastName && nameData.firstName) {
-        // Имя уже введено, заполняем поля и скрываем форму
-        document.getElementById('studentLastName').value = nameData.lastName || '';
-        document.getElementById('studentFirstName').value = nameData.firstName || '';
-        document.getElementById('nameInputSection').style.display = 'none';
-        
-        // Показываем текущий вопрос
-        lastQuizStatus = quiz.status;
-        lastQuestionIndex = quiz.currentQuestionIndex || -1;
-        
-        if (quiz.status === 'active') {
-            showQuestionForStudent(quiz, false);
-            const questionStartedAt = quiz.currentQuestionStartedAt || quiz.startedAt;
-            startQuestionTimer(questionStartedAt);
-        } else {
-            document.getElementById('waitingSection').style.display = 'block';
+    const errorDiv = document.getElementById('roomCodeError');
+    errorDiv.style.display = 'none';
+    
+    // Пытаемся загрузить квиз с сервера по коду
+    let quiz = null;
+    if (USE_API_SYNC) {
+        try {
+            quiz = await fetchQuizFromAPI(roomCode);
+            if (!quiz || !quiz.id) {
+                throw new Error('Квиз не найден');
+            }
+        } catch (e) {
+            console.error('Ошибка загрузки квиза:', e);
+            if (errorDiv) {
+                errorDiv.textContent = 'Квиз с таким кодом не найден. Проверьте код и попробуйте снова.';
+                errorDiv.style.display = 'block';
+            }
+            return;
         }
     } else {
-        // Имя не введено - показываем форму
-        document.getElementById('nameInputSection').style.display = 'block';
+        // Без API синхронизации проверяем localStorage
+        const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
+        if (saved) {
+            try {
+                const savedQuiz = JSON.parse(saved);
+                if (savedQuiz.id === roomCode) {
+                    quiz = savedQuiz;
+                } else {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Квиз с таким кодом не найден. Проверьте код и попробуйте снова.';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.error('Ошибка парсинга квиза:', e);
+                if (errorDiv) {
+                    errorDiv.textContent = 'Ошибка загрузки квиза.';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = 'Квиз с таким кодом не найден. Проверьте код и попробуйте снова.';
+                errorDiv.style.display = 'block';
+            }
+            return;
+        }
+    }
+    
+    // Квиз найден - сохраняем quizId и показываем форму ввода имени
+    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quiz.id);
+    localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(quiz));
+    
+    document.getElementById('roomCodeSection').style.display = 'none';
+    document.getElementById('nameInputSection').style.display = 'block';
+    
+    console.log('Подключение к комнате успешно, quizId:', quiz.id);
+}
+
+// Копирование кода квиза
+function handleCopyQuizCode() {
+    const codeDisplay = document.getElementById('quizCodeDisplay');
+    if (!codeDisplay) return;
+    
+    codeDisplay.select();
+    codeDisplay.setSelectionRange(0, 99999); // Для мобильных устройств
+    
+    try {
+        document.execCommand('copy');
+        const btn = document.getElementById('copyQuizCodeBtn');
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Скопировано';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Ошибка копирования:', err);
     }
 }
 
@@ -426,6 +504,15 @@ function setupEventHandlers() {
     
     // Студент
     document.getElementById('joinQuizBtn')?.addEventListener('click', handleJoinQuiz);
+    document.getElementById('connectToRoomBtn')?.addEventListener('click', handleConnectToRoom);
+    document.getElementById('copyQuizCodeBtn')?.addEventListener('click', handleCopyQuizCode);
+    
+    // Разрешаем подключение по Enter в поле кода комнаты
+    document.getElementById('roomCodeInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleConnectToRoom();
+        }
+    });
     document.getElementById('submitAnswerBtn')?.addEventListener('click', handleSubmitAnswer);
 }
 
@@ -662,6 +749,13 @@ function showQuizControl() {
     document.getElementById('currentQuizName').textContent = currentQuiz.name;
     document.getElementById('totalQuestions').textContent = currentQuiz.questions.length;
     
+    // Показываем код комнаты
+    const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || currentQuiz.id || 'default';
+    const codeDisplay = document.getElementById('quizCodeDisplay');
+    if (codeDisplay) {
+        codeDisplay.value = quizId;
+    }
+    
     loadStudents();
 }
 
@@ -802,89 +896,16 @@ async function handleJoinQuiz() {
         return;
     }
     
+    // Получаем quizId из localStorage (должен быть установлен при подключении к комнате)
+    const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID);
+    
+    if (!quizId) {
+        alert('Сначала подключитесь к комнате по коду');
+        return;
+    }
+    
     // Сохраняем имя
     localStorage.setItem(STORAGE_KEY_STUDENT_NAME, JSON.stringify({ lastName, firstName }));
-    
-    // ВАЖНО: Сначала получаем quizId из активного квиза (с сервера или localStorage)
-    let quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
-    
-    // Если используем API синхронизацию, пытаемся загрузить квиз с сервера для получения quizId
-    if (USE_API_SYNC) {
-        try {
-            // Пробуем разные quizId: сначала из localStorage, потом 'default'
-            // fetchQuizFromAPI автоматически сохранит правильный quizId в localStorage
-            const possibleQuizIds = [quizId, 'default'];
-            let foundQuiz = null;
-            
-            for (const testQuizId of possibleQuizIds) {
-                const quiz = await fetchQuizFromAPI(testQuizId);
-                if (quiz && quiz.id) {
-                    foundQuiz = quiz;
-                    quizId = quiz.id;
-                    console.log('handleJoinQuiz: получен quizId из сервера:', quizId);
-                    break;
-                }
-            }
-            
-            // Если не нашли с известными quizId, пробуем найти активный квиз другим способом
-            // Загружаем квиз с 'default' и проверяем его id
-            if (!foundQuiz) {
-                const defaultQuiz = await fetchQuizFromAPI('default');
-                if (defaultQuiz && defaultQuiz.id && defaultQuiz.id !== 'default') {
-                    quizId = defaultQuiz.id;
-                    console.log('handleJoinQuiz: найден активный квиз через default:', quizId);
-                }
-            }
-        } catch (e) {
-            console.error('Ошибка загрузки quizId с сервера:', e);
-            // Fallback: пытаемся получить из localStorage квиза
-            const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
-            if (savedQuiz) {
-                try {
-                    const quiz = JSON.parse(savedQuiz);
-                    if (quiz.id) {
-                        quizId = quiz.id;
-                        localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
-                        console.log('handleJoinQuiz: получен quizId из localStorage:', quizId);
-                    }
-                } catch (e2) {
-                    console.error('Ошибка получения quizId из localStorage:', e2);
-                }
-            }
-        }
-    } else {
-        // Без API синхронизации - получаем из localStorage
-        const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
-        if (savedQuiz) {
-            try {
-                const quiz = JSON.parse(savedQuiz);
-                if (quiz.id) {
-                    quizId = quiz.id;
-                    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
-                    console.log('handleJoinQuiz: получен quizId из localStorage:', quizId);
-                }
-            } catch (e) {
-                console.error('Ошибка получения quizId из localStorage:', e);
-            }
-        }
-    }
-    
-    // Финальная проверка: если quizId все еще 'default', но есть квиз в localStorage с другим id
-    if (quizId === 'default') {
-        const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
-        if (savedQuiz) {
-            try {
-                const quiz = JSON.parse(savedQuiz);
-                if (quiz.id && quiz.id !== 'default') {
-                    quizId = quiz.id;
-                    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
-                    console.log('handleJoinQuiz: исправлен quizId из localStorage квиза:', quizId);
-                }
-            } catch (e) {
-                console.error('Ошибка финальной проверки quizId:', e);
-            }
-        }
-    }
     
     console.log('handleJoinQuiz: используемый quizId:', quizId);
     
@@ -942,6 +963,10 @@ async function handleJoinQuiz() {
     } else {
         console.log('Студент уже зарегистрирован:', lastName, firstName);
     }
+    
+    // Переходим к ожиданию начала квиза
+    document.getElementById('nameInputSection').style.display = 'none';
+    document.getElementById('waitingSection').style.display = 'block';
     
     // Переходим к ожиданию
     document.getElementById('nameInputSection').style.display = 'none';
