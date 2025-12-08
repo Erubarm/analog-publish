@@ -519,7 +519,7 @@ function displayQuestionsPreview(questions) {
 }
 
 // Сохранение квиза
-function handleSaveQuiz() {
+async function handleSaveQuiz() {
     if (!currentQuiz) {
         alert('Сначала загрузите вопросы');
         return;
@@ -543,6 +543,11 @@ function handleSaveQuiz() {
         return;
     }
     
+    // Генерируем уникальный ID квиза для синхронизации
+    const quizId = currentQuiz.id || `quiz_${Date.now()}`;
+    currentQuiz.id = quizId;
+    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+    
     // Сохраняем квиз
     currentQuiz.status = 'waiting'; // waiting, active, finished
     currentQuiz.currentQuestionIndex = 0;
@@ -550,14 +555,28 @@ function handleSaveQuiz() {
     
     localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(currentQuiz));
     
+    // Синхронизируем квиз с сервером
+    await syncQuizToAPI(currentQuiz, quizId);
+    console.log('handleSaveQuiz: Квиз синхронизирован с сервером, quizId:', quizId);
+    
     // Не очищаем список студентов при сохранении квиза - они могут уже быть добавлены
     // Только инициализируем пустой массив, если его еще нет
     const existingStudents = localStorage.getItem(STORAGE_KEY_STUDENTS);
     if (!existingStudents) {
-        localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify([]));
+        const emptyStudents = [];
+        localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(emptyStudents));
+        await syncStudentsToAPI(emptyStudents, quizId);
         console.log('handleSaveQuiz: Инициализирован пустой список студентов');
     } else {
         console.log('handleSaveQuiz: Сохранен квиз, список студентов сохранен:', existingStudents);
+        // ВСЕГДА синхронизируем существующих студентов с сервером
+        try {
+            const students = JSON.parse(existingStudents);
+            await syncStudentsToAPI(students, quizId);
+            console.log('handleSaveQuiz: Список студентов синхронизирован с сервером:', students.length);
+        } catch (e) {
+            console.error('Ошибка синхронизации существующих студентов:', e);
+        }
     }
     
     alert('Квиз сохранен! Теперь студенты могут присоединиться.');
@@ -593,15 +612,35 @@ async function loadStudents() {
     // Пытаемся загрузить с сервера (если настроено)
     const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
     let saved = localStorage.getItem(STORAGE_KEY_STUDENTS);
+    let localStudents = [];
+    
+    // Парсим локальные данные для сравнения
+    if (saved) {
+        try {
+            localStudents = JSON.parse(saved);
+        } catch (e) {
+            localStudents = [];
+        }
+    }
     
     if (USE_API_SYNC) {
         try {
             const serverStudents = await fetchStudentsFromAPI(quizId);
-            if (serverStudents && serverStudents.length > 0) {
-                saved = JSON.stringify(serverStudents);
+            // Используем данные с сервера только если они есть и не пустые
+            // Или если локальных данных нет
+            if (serverStudents && Array.isArray(serverStudents)) {
+                if (serverStudents.length > 0 || localStudents.length === 0) {
+                    saved = JSON.stringify(serverStudents);
+                    console.log('loadStudents: использованы данные с сервера:', serverStudents.length, 'студентов');
+                } else {
+                    // Если на сервере пусто, но локально есть данные - сохраняем локальные на сервер
+                    console.log('loadStudents: на сервере пусто, но локально есть', localStudents.length, 'студентов. Синхронизируем...');
+                    await syncStudentsToAPI(localStudents, quizId);
+                }
             }
         } catch (e) {
             console.error('Ошибка загрузки студентов с сервера:', e);
+            // При ошибке используем локальные данные
         }
     }
     
@@ -1179,36 +1218,12 @@ function startPolling() {
                 }
             }
         } else if (currentMode === 'teacher') {
-            // Преподаватель всегда обновляет список студентов при каждом polling
-            const savedStudents = localStorage.getItem(STORAGE_KEY_STUDENTS);
-            if (savedStudents) {
-                try {
-                    const parsedStudents = JSON.parse(savedStudents);
-                    if (Array.isArray(parsedStudents)) {
-                        const currentStudentsJson = JSON.stringify(students || []);
-                        const newStudentsJson = JSON.stringify(parsedStudents);
-                        const studentsChanged = currentStudentsJson !== newStudentsJson;
-                        
-                        if (studentsChanged) {
-                            console.log('Polling: обнаружено изменение списка студентов', parsedStudents);
-                            loadStudents();
-                        }
-                    }
-                } catch (e) {
-                    console.error('Ошибка проверки студентов в polling:', e);
-                }
-            } else {
-                // Если нет данных, но у нас есть студенты в памяти - очищаем
-                if (students && students.length > 0) {
-                    console.log('Polling: данные студентов удалены из localStorage');
-                    loadStudents();
-                }
-            }
-            
-            // Всегда вызываем loadStudents для гарантии обновления (но только если квиз создан)
+            // Преподаватель загружает список студентов с сервера при каждом polling
+            // Это гарантирует, что мы видим всех студентов, даже если они присоединились на других устройствах
             const quizControlSection = document.getElementById('quizControlSection');
             if (quizControlSection && quizControlSection.style.display !== 'none') {
-                loadStudents();
+                // Загружаем студентов с сервера (если настроено) или из localStorage
+                await loadStudents();
             }
             
             // Обновляем прогресс если квиз активен

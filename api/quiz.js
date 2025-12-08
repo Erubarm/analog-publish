@@ -21,33 +21,108 @@ export default async function handler(req, res) {
         return;
     }
 
-    const { type, quizId } = req.query || {};
+    // Парсим query параметры (Vercel предоставляет их в req.query как объект)
+    // Также проверяем req.url на случай если query не распарсен
+    let type = null;
+    let quizId = 'default';
+    
+    if (req.query && typeof req.query === 'object') {
+        type = req.query.type || null;
+        quizId = req.query.quizId || 'default';
+    }
+    
+    // Fallback: парсим из URL если query не доступен
+    if (!type && req.url) {
+        try {
+            const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+            type = url.searchParams.get('type');
+            quizId = url.searchParams.get('quizId') || 'default';
+        } catch (e) {
+            console.error('Ошибка парсинга URL:', e);
+        }
+    }
+
+    // Парсим body для POST запросов
+    let body = null;
+    if (req.method === 'POST') {
+        if (req.body) {
+            try {
+                body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+            } catch (e) {
+                console.error('Ошибка парсинга body:', e, 'Body:', req.body);
+                return res.status(400).json({ error: 'Invalid JSON in body' });
+            }
+        } else {
+            console.warn('POST request without body');
+        }
+    }
+
+    console.log(`API Request: ${req.method} type=${type} quizId=${quizId}`, req.method === 'POST' ? `body keys: ${body ? Object.keys(body).join(',') : 'none'}` : '');
+
+    // Проверяем наличие обязательного параметра type
+    if (!type) {
+        return res.status(400).json({ 
+            error: 'Invalid request', 
+            message: 'Missing required parameter: type. Use ?type=quiz or ?type=students',
+            received: { type, quizId, method: req.method }
+        });
+    }
 
     try {
         if (req.method === 'POST') {
             // Сохранение данных
             if (type === 'quiz') {
-                const data = req.body;
-                quizData[quizId || 'default'] = data;
-                return res.status(200).json({ success: true });
+                if (!body) {
+                    return res.status(400).json({ error: 'Missing body for quiz data' });
+                }
+                quizData[quizId] = body;
+                console.log(`Quiz saved for quizId: ${quizId}`);
+                return res.status(200).json({ success: true, quizId });
             } else if (type === 'students') {
-                const data = req.body;
-                studentsData[quizId || 'default'] = data;
-                return res.status(200).json({ success: true });
+                if (!body) {
+                    return res.status(400).json({ error: 'Missing body for students data' });
+                }
+                if (!Array.isArray(body)) {
+                    return res.status(400).json({ error: 'Students data must be an array' });
+                }
+                studentsData[quizId] = body;
+                console.log(`Students saved for quizId: ${quizId}, count: ${body.length}`);
+                return res.status(200).json({ success: true, quizId, count: body.length });
+            } else {
+                return res.status(400).json({ 
+                    error: `Invalid type: ${type}. Expected 'quiz' or 'students'`,
+                    received: { type, quizId, method: req.method }
+                });
             }
         } else if (req.method === 'GET') {
             // Получение данных
             if (type === 'quiz') {
-                return res.status(200).json(quizData[quizId || 'default'] || null);
+                const data = quizData[quizId] || null;
+                console.log(`Quiz retrieved for quizId: ${quizId}, exists: ${data !== null}`);
+                return res.status(200).json(data);
             } else if (type === 'students') {
-                return res.status(200).json(studentsData[quizId || 'default'] || []);
+                const data = studentsData[quizId] || [];
+                console.log(`Students retrieved for quizId: ${quizId}, count: ${Array.isArray(data) ? data.length : 0}`);
+                return res.status(200).json(data);
+            } else {
+                return res.status(400).json({ 
+                    error: `Invalid type: ${type}. Expected 'quiz' or 'students'`,
+                    received: { type, quizId, method: req.method }
+                });
             }
         }
 
-        return res.status(400).json({ error: 'Invalid request' });
+        return res.status(400).json({ 
+            error: `Invalid method: ${req.method}. Expected GET or POST`,
+            received: { type, quizId, method: req.method }
+        });
     } catch (error) {
         console.error('API Error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ 
+            error: 'Internal server error', 
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 }
 
