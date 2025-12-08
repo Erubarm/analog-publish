@@ -81,10 +81,17 @@ async function fetchQuizFromAPI(quizId = 'default') {
     }
     
     try {
-        const response = await fetch(`${SYNC_API_URL}?type=quiz&quizId=${quizId}`);
+        const response = await fetch(`${SYNC_API_URL}?type=quiz&quizId=${encodeURIComponent(quizId)}`);
         if (response.ok) {
             const data = await response.json();
-            if (data) {
+            if (data && data.id) {
+                // ВАЖНО: Сохраняем quizId из квиза, чтобы использовать его для синхронизации студентов
+                localStorage.setItem(STORAGE_KEY_QUIZ_ID, data.id);
+                localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(data));
+                console.log('fetchQuizFromAPI: получен квиз с quizId:', data.id);
+                return data;
+            } else if (data) {
+                // Квиз без id - сохраняем как есть
                 localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(data));
                 return data;
             }
@@ -805,14 +812,27 @@ async function handleJoinQuiz() {
     if (USE_API_SYNC) {
         try {
             // Пробуем разные quizId: сначала из localStorage, потом 'default'
+            // fetchQuizFromAPI автоматически сохранит правильный quizId в localStorage
             const possibleQuizIds = [quizId, 'default'];
+            let foundQuiz = null;
+            
             for (const testQuizId of possibleQuizIds) {
                 const quiz = await fetchQuizFromAPI(testQuizId);
                 if (quiz && quiz.id) {
+                    foundQuiz = quiz;
                     quizId = quiz.id;
-                    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
                     console.log('handleJoinQuiz: получен quizId из сервера:', quizId);
                     break;
+                }
+            }
+            
+            // Если не нашли с известными quizId, пробуем найти активный квиз другим способом
+            // Загружаем квиз с 'default' и проверяем его id
+            if (!foundQuiz) {
+                const defaultQuiz = await fetchQuizFromAPI('default');
+                if (defaultQuiz && defaultQuiz.id && defaultQuiz.id !== 'default') {
+                    quizId = defaultQuiz.id;
+                    console.log('handleJoinQuiz: найден активный квиз через default:', quizId);
                 }
             }
         } catch (e) {
@@ -845,6 +865,23 @@ async function handleJoinQuiz() {
                 }
             } catch (e) {
                 console.error('Ошибка получения quizId из localStorage:', e);
+            }
+        }
+    }
+    
+    // Финальная проверка: если quizId все еще 'default', но есть квиз в localStorage с другим id
+    if (quizId === 'default') {
+        const savedQuiz = localStorage.getItem(STORAGE_KEY_QUIZ);
+        if (savedQuiz) {
+            try {
+                const quiz = JSON.parse(savedQuiz);
+                if (quiz.id && quiz.id !== 'default') {
+                    quizId = quiz.id;
+                    localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+                    console.log('handleJoinQuiz: исправлен quizId из localStorage квиза:', quizId);
+                }
+            } catch (e) {
+                console.error('Ошибка финальной проверки quizId:', e);
             }
         }
     }
@@ -1249,14 +1286,28 @@ function startPolling() {
     setInterval(async () => {
         if (currentMode === 'student') {
             // Студент проверяет обновления квиза с сервера
-            const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
+            let quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
             let quiz = null;
             
             // ВСЕГДА загружаем данные с сервера (если настроено), чтобы получить актуальные данные
             if (USE_API_SYNC) {
                 try {
+                    // Пробуем загрузить квиз с текущим quizId
                     quiz = await fetchQuizFromAPI(quizId);
-                    console.log('Polling: загружен квиз с сервера, вопрос:', (quiz?.currentQuestionIndex || 0) + 1);
+                    
+                    // Если не нашли с текущим quizId, пробуем 'default'
+                    if (!quiz || !quiz.id) {
+                        quiz = await fetchQuizFromAPI('default');
+                    }
+                    
+                    // Если получили квиз с другим id, обновляем quizId
+                    if (quiz && quiz.id && quiz.id !== quizId) {
+                        quizId = quiz.id;
+                        localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+                        console.log('Polling: обновлен quizId на', quizId);
+                    }
+                    
+                    console.log('Polling: загружен квиз с сервера, вопрос:', (quiz?.currentQuestionIndex || 0) + 1, 'quizId:', quizId);
                     // Обновляем localStorage актуальными данными с сервера
                     if (quiz) {
                         localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(quiz));
@@ -1268,6 +1319,12 @@ function startPolling() {
                     if (saved) {
                         try {
                             quiz = JSON.parse(saved);
+                            // Обновляем quizId из сохраненного квиза
+                            if (quiz.id && quiz.id !== quizId) {
+                                quizId = quiz.id;
+                                localStorage.setItem(STORAGE_KEY_QUIZ_ID, quizId);
+                                console.log('Polling: обновлен quizId из localStorage на', quizId);
+                            }
                             console.warn('Polling: использованы данные из localStorage (fallback)');
                         } catch (e2) {
                             console.error('Ошибка парсинга квиза из localStorage:', e2);
