@@ -248,51 +248,93 @@ function initTeacherMode() {
 }
 
 // Инициализация режима студента
-function initStudentMode() {
+async function initStudentMode() {
     currentMode = 'student';
     document.getElementById('studentMode').style.display = 'block';
+    
+    // Проверяем актуальный статус квиза с сервера (если настроено)
+    const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || 'default';
+    let quiz = null;
+    
+    if (USE_API_SYNC) {
+        try {
+            quiz = await fetchQuizFromAPI(quizId);
+            console.log('initStudentMode: загружен квиз с сервера, статус:', quiz?.status);
+        } catch (e) {
+            console.error('Ошибка загрузки квиза с сервера при инициализации:', e);
+            // Fallback на localStorage
+            const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
+            if (saved) {
+                try {
+                    quiz = JSON.parse(saved);
+                } catch (e2) {
+                    console.error('Ошибка парсинга квиза из localStorage:', e2);
+                }
+            }
+        }
+    } else {
+        // Используем только localStorage
+        const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
+        if (saved) {
+            try {
+                quiz = JSON.parse(saved);
+            } catch (e) {
+                console.error('Ошибка парсинга квиза:', e);
+            }
+        }
+    }
     
     // Проверяем, есть ли сохраненное имя
     const savedName = localStorage.getItem(STORAGE_KEY_STUDENT_NAME);
     const nameData = savedName ? JSON.parse(savedName) : null;
     
+    // Если квиз не существует, завершен или в статусе waiting - очищаем состояние студента
+    if (!quiz || quiz.status === 'finished' || quiz.status === 'waiting') {
+        // Очищаем сохраненное имя, чтобы студент мог заново присоединиться
+        if (quiz && quiz.status === 'finished') {
+            // Если квиз завершен, показываем результаты (если студент участвовал)
+            if (nameData && nameData.lastName && nameData.firstName) {
+                showResultsForStudent(quiz);
+                return;
+            }
+        }
+        
+        // Очищаем сохраненное состояние для нового квиза
+        localStorage.removeItem(STORAGE_KEY_STUDENT_NAME);
+        localStorage.removeItem(STORAGE_KEY_QUIZ);
+        localStorage.removeItem(STORAGE_KEY_QUIZ_ID);
+        
+        // Показываем форму ввода имени заново
+        document.getElementById('nameInputSection').style.display = 'block';
+        document.getElementById('waitingSection').style.display = 'none';
+        document.getElementById('quizTakingSection').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'none';
+        
+        console.log('initStudentMode: квиз не активен, состояние очищено');
+        return;
+    }
+    
+    // Квиз активен - проверяем, присоединился ли студент
     if (nameData && nameData.lastName && nameData.firstName) {
         // Имя уже введено, заполняем поля и скрываем форму
         document.getElementById('studentLastName').value = nameData.lastName || '';
         document.getElementById('studentFirstName').value = nameData.firstName || '';
         document.getElementById('nameInputSection').style.display = 'none';
-    }
-    
-    // Проверяем, есть ли активный квиз
-    const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
-    if (saved) {
-        try {
-            const quiz = JSON.parse(saved);
-            lastQuizStatus = quiz.status;
-            lastQuestionIndex = quiz.currentQuestionIndex || -1;
-            
-            if (quiz.status === 'active') {
-                // Если студент уже ввел имя, показываем вопрос
-                if (nameData && nameData.lastName && nameData.firstName) {
-                    showQuestionForStudent(quiz);
-                    startQuestionTimer();
-                } else {
-                    // Показываем ожидание начала
-                    document.getElementById('waitingSection').style.display = 'block';
-                }
-            } else if (quiz.status === 'finished') {
-                if (nameData && nameData.lastName && nameData.firstName) {
-                    showResultsForStudent(quiz);
-                }
-            } else {
-                // Квиз еще не начат, показываем ожидание
-                if (nameData && nameData.lastName && nameData.firstName) {
-                    document.getElementById('waitingSection').style.display = 'block';
-                }
-            }
-        } catch (e) {
-            console.error('Ошибка проверки квиза:', e);
+        
+        // Показываем текущий вопрос
+        lastQuizStatus = quiz.status;
+        lastQuestionIndex = quiz.currentQuestionIndex || -1;
+        
+        if (quiz.status === 'active') {
+            showQuestionForStudent(quiz, false);
+            const questionStartedAt = quiz.currentQuestionStartedAt || quiz.startedAt;
+            startQuestionTimer(questionStartedAt);
+        } else {
+            document.getElementById('waitingSection').style.display = 'block';
         }
+    } else {
+        // Имя не введено - показываем форму
+        document.getElementById('nameInputSection').style.display = 'block';
     }
 }
 
