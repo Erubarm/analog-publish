@@ -1050,6 +1050,12 @@ function showQuestionForStudent(quiz, resetTimer = true) {
     const displayedQuestionNumber = parseInt(document.getElementById('studentQuestionNumber')?.textContent || '0');
     const questionChanged = (currentQuestionIndex + 1) !== displayedQuestionNumber;
     
+    // ВАЖНО: Защита от отката назад - не обновляем UI если текущий вопрос меньше отображаемого
+    if (currentQuestionIndex + 1 < displayedQuestionNumber && displayedQuestionNumber > 0) {
+        console.warn('showQuestionForStudent: попытка отката на предыдущий вопрос. Игнорируем. Текущий:', currentQuestionIndex + 1, 'Отображаемый:', displayedQuestionNumber);
+        return;
+    }
+    
     document.getElementById('questionText').textContent = question.text;
     document.getElementById('studentQuestionNumber').textContent = currentQuestionIndex + 1;
     document.getElementById('studentTotalQuestions').textContent = quiz.questions.length;
@@ -1377,16 +1383,18 @@ function startPolling() {
                         
                         if (quiz.status === 'active') {
                             const currentIndex = quiz.currentQuestionIndex || 0;
-                            const isNewQuestion = currentIndex !== lastQuestionIndex;
+                            // Обновляем только если вопрос изменился ВПЕРЕД
+                            const isNewQuestion = currentIndex !== lastQuestionIndex && currentIndex >= lastQuestionIndex;
                             
-                            showQuestionForStudent(quiz, isNewQuestion);
-                            
-                            // Запускаем таймер с синхронизацией времени начала вопроса
                             if (isNewQuestion) {
+                                showQuestionForStudent(quiz, true);
+                                // Запускаем таймер с синхронизацией времени начала вопроса
                                 const questionStartedAt = quiz.currentQuestionStartedAt || quiz.startedAt;
                                 startQuestionTimer(questionStartedAt);
                                 lastQuestionIndex = currentIndex;
                                 console.log('Polling: запущен таймер для вопроса', currentIndex + 1, 'время начала:', questionStartedAt);
+                            } else if (currentIndex < lastQuestionIndex) {
+                                console.warn('Polling: обнаружен откат вопроса при изменении статуса. Игнорируем.');
                             }
                         } else if (quiz.status === 'finished') {
                             if (quizTimer) {
@@ -1397,14 +1405,20 @@ function startPolling() {
                     } else if (quiz.status === 'active') {
                         // Проверяем изменение индекса вопроса
                         const currentIndex = quiz.currentQuestionIndex || 0;
-                        if (currentIndex !== lastQuestionIndex) {
-                            console.log('Polling: переход к вопросу', currentIndex + 1);
+                        
+                        // ВАЖНО: Обновляем только если вопрос изменился ВПЕРЕД (не откатываемся назад)
+                        // Это предотвращает откат на предыдущий вопрос при временных проблемах синхронизации
+                        if (currentIndex !== lastQuestionIndex && currentIndex >= lastQuestionIndex) {
+                            console.log('Polling: переход к вопросу', currentIndex + 1, '(был вопрос', lastQuestionIndex + 1 + ')');
                             lastQuestionIndex = currentIndex;
                             showQuestionForStudent(quiz, true); // Явно сбрасываем таймер при смене вопроса
                             // Используем время начала вопроса для синхронизации таймера
                             const questionStartedAt = quiz.currentQuestionStartedAt || quiz.startedAt;
                             startQuestionTimer(questionStartedAt);
                             console.log('Polling: запущен таймер для вопроса', currentIndex + 1, 'время начала:', questionStartedAt);
+                        } else if (currentIndex < lastQuestionIndex) {
+                            // Предупреждение о возможной проблеме синхронизации, но не откатываемся
+                            console.warn('Polling: обнаружен откат вопроса (текущий:', currentIndex + 1, 'был:', lastQuestionIndex + 1 + '). Игнорируем для предотвращения отката UI.');
                         }
                     }
                 } catch (e) {
