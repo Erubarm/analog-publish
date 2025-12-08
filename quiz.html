@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Квиз</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="quiz-styles.css">
+</head>
+<body>
+    <div class="quiz-container">
+        <!-- Режим преподавателя -->
+        <div id="teacherMode" class="quiz-mode" style="display: none;">
+            <div class="quiz-header">
+                <h1>🎓 Режим преподавателя</h1>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="Переключить тему">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                    <a href="index.html" class="back-link">← Вернуться к лекциям</a>
+                </div>
+            </div>
+            
+            <!-- Создание квиза -->
+            <div id="createQuizSection" class="quiz-section">
+                <h2>Создать новый квиз</h2>
+                <div class="form-group">
+                    <label for="quizFileSelect">Выберите MD файл с вопросами:</label>
+                    <select id="quizFileSelect" class="file-select">
+                        <option value="">Загрузка файлов...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quizName">Название квиза:</label>
+                    <input type="text" id="quizName" placeholder="Введите название квиза" class="text-input">
+                </div>
+                <button id="parseQuizBtn" class="btn btn-primary">Загрузить и распознать вопросы</button>
+                
+                <div id="questionsPreview" class="questions-preview" style="display: none;">
+                    <h3>Распознанные вопросы:</h3>
+                    <div id="questionsList"></div>
+                    <button id="saveQuizBtn" class="btn btn-success">Сохранить квиз</button>
+                </div>
+            </div>
+            
+            <!-- Управление квизом -->
+            <div id="quizControlSection" class="quiz-section" style="display: none;">
+                <h2>Управление квизом: <span id="currentQuizName"></span></h2>
+                
+                <div class="students-list-section">
+                    <h3>Участники (<span id="studentsCount">0</span>)</h3>
+                    <button id="refreshStudentsBtn" class="btn btn-primary" style="margin-bottom: 10px;">Обновить список</button>
+                    <div id="studentsList" class="students-list"></div>
+                </div>
+                
+                <div class="quiz-controls">
+                    <button id="startQuizBtn" class="btn btn-success btn-large">▶ Начать квиз</button>
+                    <button id="resetQuizBtn" class="btn btn-danger">Сбросить квиз</button>
+                </div>
+                
+                <div id="quizProgress" class="quiz-progress" style="display: none;">
+                    <h3>Текущий вопрос: <span id="currentQuestionNumber">1</span> / <span id="totalQuestions">0</span></h3>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <div id="questionTimer" class="timer">20</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Режим студента -->
+        <div id="studentMode" class="quiz-mode" style="display: none;">
+            <div class="quiz-header">
+                <h1>📝 Режим студента</h1>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="Переключить тему">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Ввод имени -->
+            <div id="nameInputSection" class="quiz-section">
+                <h2>Введите ваше имя</h2>
+                <div class="form-group">
+                    <label for="studentLastName">Фамилия:</label>
+                    <input type="text" id="studentLastName" placeholder="Иванов" class="text-input">
+                </div>
+                <div class="form-group">
+                    <label for="studentFirstName">Имя:</label>
+                    <input type="text" id="studentFirstName" placeholder="Иван" class="text-input">
+                </div>
+                <button id="joinQuizBtn" class="btn btn-primary">Присоединиться к квизу</button>
+            </div>
+            
+            <!-- Ожидание начала -->
+            <div id="waitingSection" class="quiz-section" style="display: none;">
+                <div class="waiting-message">
+                    <h2>Ожидание начала квиза...</h2>
+                    <p>Преподаватель запустит квиз, пожалуйста, подождите.</p>
+                    <div class="spinner"></div>
+                </div>
+            </div>
+            
+            <!-- Прохождение квиза -->
+            <div id="quizTakingSection" class="quiz-section" style="display: none;">
+                <div class="quiz-header-student">
+                    <div class="question-counter">
+                        Вопрос <span id="studentQuestionNumber">1</span> из <span id="studentTotalQuestions">0</span>
+                    </div>
+                    <div id="studentTimer" class="timer timer-large">20</div>
+                </div>
+                
+                <div id="questionContent" class="question-content">
+                    <h2 id="questionText"></h2>
+                    <div id="answersList" class="answers-list"></div>
+                </div>
+                
+                <button id="submitAnswerBtn" class="btn btn-primary btn-large" style="display: none;">Ответить</button>
+            </div>
+            
+            <!-- Результаты -->
+            <div id="resultsSection" class="quiz-section" style="display: none;">
+                <h2>Результаты</h2>
+                <div id="resultsContent" class="results-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="quiz.js"></script>
+</body>
+</html>
+

@@ -64,13 +64,19 @@ function renderFileTree(files) {
         return;
     }
     
-    if (files.length === 0) {
+    // Фильтруем файлы из папки "тесты" - они не должны отображаться в списке лекций
+    const filteredFiles = files.filter(file => {
+        const path = file.path || file;
+        return !path.startsWith('тесты/') && !path.startsWith('тесты\\');
+    });
+    
+    if (filteredFiles.length === 0) {
         fileTree.innerHTML = '<div style="padding: 20px; color: #999;">Нет доступных лекций</div>';
         return;
     }
     
-    console.log('Рендеринг дерева файлов:', files);
-    const tree = buildTree(files);
+    console.log('Рендеринг дерева файлов:', filteredFiles);
+    const tree = buildTree(filteredFiles);
     renderTree(tree, fileTree, 0);
 }
 
