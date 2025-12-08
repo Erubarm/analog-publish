@@ -27,15 +27,23 @@ async function syncQuizToAPI(quizData, quizId = 'default') {
     }
     
     try {
-        const response = await fetch(`${SYNC_API_URL}?type=quiz&quizId=${quizId}`, {
+        const url = `${SYNC_API_URL}?type=quiz&quizId=${encodeURIComponent(quizId)}`;
+        console.log('syncQuizToAPI: отправка квиза на', url, 'quizId:', quizId);
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(quizData)
         });
         
+        console.log('syncQuizToAPI: статус ответа', response.status);
         if (response.ok) {
+            const result = await response.json();
+            console.log('syncQuizToAPI: ответ сервера', result);
             localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(quizData));
-            console.log('Квиз синхронизирован с сервером');
+            console.log('Квиз синхронизирован с сервером, quizId:', quizId);
+        } else {
+            const errorText = await response.text();
+            console.error('syncQuizToAPI: ошибка HTTP', response.status, errorText);
         }
     } catch (error) {
         console.error('Ошибка синхронизации квиза:', error);
@@ -81,27 +89,45 @@ async function fetchQuizFromAPI(quizId = 'default') {
     }
     
     try {
-        const response = await fetch(`${SYNC_API_URL}?type=quiz&quizId=${encodeURIComponent(quizId)}`);
+        const url = `${SYNC_API_URL}?type=quiz&quizId=${encodeURIComponent(quizId)}`;
+        console.log('fetchQuizFromAPI: запрос к', url);
+        const response = await fetch(url);
+        console.log('fetchQuizFromAPI: статус ответа', response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('fetchQuizFromAPI: получены данные', data);
+            
+            // API возвращает null если квиз не найден - это нормально
+            if (data === null) {
+                console.log('fetchQuizFromAPI: квиз не найден на сервере для quizId:', quizId);
+                return null;
+            }
+            
             if (data && data.id) {
                 // ВАЖНО: Сохраняем quizId из квиза, чтобы использовать его для синхронизации студентов
                 localStorage.setItem(STORAGE_KEY_QUIZ_ID, data.id);
                 localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(data));
                 console.log('fetchQuizFromAPI: получен квиз с quizId:', data.id);
                 return data;
-            } else if (data) {
-                // Квиз без id - сохраняем как есть
+            } else if (data && Object.keys(data).length > 0) {
+                // Квиз без id - сохраняем как есть (может быть старый формат)
                 localStorage.setItem(STORAGE_KEY_QUIZ, JSON.stringify(data));
+                console.log('fetchQuizFromAPI: получен квиз без id');
                 return data;
+            } else {
+                console.log('fetchQuizFromAPI: пустой ответ от сервера');
+                return null;
             }
+        } else {
+            const errorText = await response.text();
+            console.error('fetchQuizFromAPI: ошибка HTTP', response.status, errorText);
+            return null;
         }
     } catch (error) {
-        console.error('Ошибка загрузки квиза:', error);
+        console.error('fetchQuizFromAPI: ошибка загрузки квиза:', error);
+        return null;
     }
-    
-    const saved = localStorage.getItem(STORAGE_KEY_QUIZ);
-    return saved ? JSON.parse(saved) : null;
 }
 
 async function fetchStudentsFromAPI(quizId = 'default') {
@@ -347,6 +373,8 @@ async function initStudentMode() {
 async function handleConnectToRoom() {
     const roomCode = document.getElementById('roomCodeInput').value.trim();
     
+    console.log('handleConnectToRoom: введен код комнаты:', roomCode);
+    
     if (!roomCode) {
         const errorDiv = document.getElementById('roomCodeError');
         if (errorDiv) {
@@ -363,14 +391,37 @@ async function handleConnectToRoom() {
     let quiz = null;
     if (USE_API_SYNC) {
         try {
+            console.log('handleConnectToRoom: запрос квиза с quizId:', roomCode);
             quiz = await fetchQuizFromAPI(roomCode);
-            if (!quiz || !quiz.id) {
-                throw new Error('Квиз не найден');
+            console.log('handleConnectToRoom: загружен квиз', quiz, 'тип:', typeof quiz, 'id:', quiz?.id);
+            
+            // Проверяем, что квиз найден и имеет правильный id
+            if (!quiz) {
+                console.log('handleConnectToRoom: квиз не найден на сервере');
+                if (errorDiv) {
+                    errorDiv.textContent = 'Квиз с таким кодом не найден. Проверьте код и попробуйте снова.';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+            
+            if (!quiz.id || quiz.id !== roomCode) {
+                console.warn('handleConnectToRoom: квиз найден, но id не совпадает. Ожидался:', roomCode, 'Получен:', quiz.id);
+                // Если id не совпадает, но квиз существует, используем его id
+                if (quiz.id) {
+                    console.log('handleConnectToRoom: используем id из квиза:', quiz.id);
+                } else {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Квиз найден, но имеет некорректный формат.';
+                        errorDiv.style.display = 'block';
+                    }
+                    return;
+                }
             }
         } catch (e) {
             console.error('Ошибка загрузки квиза:', e);
             if (errorDiv) {
-                errorDiv.textContent = 'Квиз с таким кодом не найден. Проверьте код и попробуйте снова.';
+                errorDiv.textContent = 'Ошибка подключения к серверу. Попробуйте позже.';
                 errorDiv.style.display = 'block';
             }
             return;
@@ -751,9 +802,13 @@ function showQuizControl() {
     
     // Показываем код комнаты
     const quizId = localStorage.getItem(STORAGE_KEY_QUIZ_ID) || currentQuiz.id || 'default';
+    console.log('showQuizControl: отображаем код комнаты:', quizId, 'currentQuiz.id:', currentQuiz.id);
     const codeDisplay = document.getElementById('quizCodeDisplay');
     if (codeDisplay) {
         codeDisplay.value = quizId;
+        console.log('showQuizControl: код комнаты установлен в поле:', codeDisplay.value);
+    } else {
+        console.error('showQuizControl: элемент quizCodeDisplay не найден!');
     }
     
     loadStudents();
